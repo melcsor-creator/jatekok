@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Az Elveszett Útvesztő 🚪</title>
+  <link rel="stylesheet" href="style.css?v=5" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="logo">🚪 Útvesztő</div>
+  <nav class="nav-links">
+    <a href="index.html">Főoldal</a>
+    <a href="leaderboard.html">🏆 Ranglista</a>
+    <span id="nav-user" style="color:var(--muted);font-size:.9rem;"></span>
+    <a href="profile.html" id="nav-profile" style="display:none;">Profilom</a>
+    <button id="nav-logout" style="display:none;" onclick="doLogout()">Kilépés</button>
+  </nav>
+</header>
+
+<main class="container">
+
+  <div id="loading" class="center" style="margin-top:80px;color:var(--muted);">
+    <div style="font-size:2.5rem;margin-bottom:12px;">⏳</div>
+    <div>Betöltés...</div>
+  </div>
+
+  <!-- Bejelentkezett nézet -->
+  <div id="welcome-screen" style="display:none;" class="fadeIn">
+    <div class="card center" style="margin-top:40px;">
+      <div style="font-size:3.5rem;margin-bottom:12px;">🚪</div>
+      <h1 style="font-size:2rem;margin-bottom:8px;">Üdv vissza, <span id="welcome-name" style="color:var(--accent);"></span>!</h1>
+      <p style="color:var(--muted);margin-bottom:6px;">Készen állsz a kihívásra?</p>
+      <p style="margin-bottom:24px;">🪙 <span id="welcome-coins" style="color:var(--gold);font-weight:700;">0</span> érméd van</p>
+      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+        <a href="game.html" class="btn btn-primary">▶ Játék indítása</a>
+        <a href="profile.html" class="btn btn-outline" id="my-profile-link">👤 Profilom</a>
+      </div>
+    </div>
+    <div class="card" style="margin-top:24px;">
+      <h3 style="margin-bottom:18px;font-size:1.1rem;">🏆 Toplista</h3>
+      <ul class="leaderboard" id="leaderboard-home"></ul>
+    </div>
+  </div>
+
+  <!-- Login / Regisztráció -->
+  <div id="auth-screen" style="display:none;" class="fadeIn">
+
+    <div id="referral-notice" style="display:none;margin:32px auto 16px;max-width:420px;" class="card center">
+      <div style="font-size:2rem;margin-bottom:6px;">🎁</div>
+      <div style="font-weight:700;font-size:1.05rem;" id="referral-notice-text"></div>
+      <div style="color:var(--muted);font-size:.88rem;margin-top:4px;">Regisztrálj most és mindketten kaptok <strong style="color:var(--gold);">10 érmét</strong>!</div>
+    </div>
+
+    <div class="card" style="max-width:420px;margin:32px auto 0;">
+      <div class="center" style="margin-bottom:24px;">
+        <div style="font-size:3rem;margin-bottom:8px;">🚪</div>
+        <h1 style="font-size:1.6rem;font-weight:800;">Az Elveszett Útvesztő</h1>
+        <p style="color:var(--muted);font-size:.95rem;margin-top:6px;">Válassz ajtót, találd el a választ, juss tovább!</p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-btn-login" onclick="switchTab('login')">Bejelentkezés</button>
+        <button class="tab-btn" id="tab-btn-register" onclick="switchTab('register')">Regisztráció</button>
+      </div>
+
+      <div class="tab-content active" id="tab-login">
+        <div class="form-group">
+          <label>Felhasználónév</label>
+          <input type="text" id="login-name" placeholder="A te neved..." autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label>Jelszó</label>
+          <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" />
+        </div>
+        <div class="error-msg" id="login-error"></div>
+        <button class="btn btn-primary btn-full" style="margin-top:8px;" id="login-btn" onclick="doLogin()">Bejelentkezés</button>
+      </div>
+
+      <div class="tab-content" id="tab-register">
+        <div id="reg-ref-info" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.88rem;">
+          🎁 Meghívó: <strong id="reg-ref-name" style="color:var(--accent);"></strong> — regisztráció után mindketten kaptok <strong style="color:var(--gold);">10 érmét</strong>!
+        </div>
+        <div class="form-group">
+          <label>Felhasználónév</label>
+          <input type="text" id="reg-name" placeholder="Válassz egy nevet..." autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label>Jelszó</label>
+          <input type="password" id="reg-pass" placeholder="Legalább 3 karakter" autocomplete="new-password" />
+        </div>
+        <div class="form-group">
+          <label>Jelszó megerősítése</label>
+          <input type="password" id="reg-pass2" placeholder="Ugyanaz újra" autocomplete="new-password" />
+        </div>
+        <div class="error-msg" id="reg-error"></div>
+        <div class="success-msg" id="reg-success"></div>
+        <button class="btn btn-primary btn-full" style="margin-top:8px;" id="reg-btn" onclick="doRegister()">Fiók létrehozása</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+<script src="data.js?v=5"></script>
+<script>
+const SESSION_KEY = 'doorpuzzle_session';
+const REFERRAL_BONUS = 10;
+const urlParams = new URLSearchParams(window.location.search);
+const refParam = urlParams.get('ref');
+
+function getSession() { return localStorage.getItem(SESSION_KEY); }
+function setSession(n) { localStorage.setItem(SESSION_KEY, n); }
+function clearSession() { localStorage.removeItem(SESSION_KEY); }
+
+function switchTab(tab) {
+  document.getElementById('tab-btn-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-btn-register').classList.toggle('active', tab === 'register');
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+}
+
+async function doLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  err.textContent = '';
+  btn.disabled = true; btn.textContent = 'Betöltés...';
+  try {
+    const snap = await db.collection('users').doc(name).get();
+    if (!snap.exists) { err.textContent = 'Nem létezik ilyen felhasználó!'; return; }
+    if (snap.data().password !== pass) { err.textContent = 'Hibás jelszó!'; return; }
+    setSession(name);
+    window.location.href = 'game.html';
+  } catch(e) {
+    err.textContent = 'Kapcsolati hiba: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Bejelentkezés';
+  }
+}
+
+async function doRegister() {
+  const name = document.getElementById('reg-name').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  const pass2 = document.getElementById('reg-pass2').value;
+  const err = document.getElementById('reg-error');
+  const succ = document.getElementById('reg-success');
+  const btn = document.getElementById('reg-btn');
+  err.textContent = ''; succ.textContent = '';
+
+  if (!name || !pass) { err.textContent = 'Töltsd ki mindkét mezőt!'; return; }
+  if (name.length < 2) { err.textContent = 'A név legalább 2 karakter!'; return; }
+  if (pass.length < 3) { err.textContent = 'A jelszó legalább 3 karakter!'; return; }
+  if (pass !== pass2) { err.textContent = 'A két jelszó nem egyezik!'; return; }
+
+  btn.disabled = true; btn.textContent = 'Létrehozás...';
+  try {
+    const existing = await db.collection('users').doc(name).get();
+    if (existing.exists) { err.textContent = 'Ez a név már foglalt!'; return; }
+
+    let coins = 0;
+    let referredBy = null;
+
+    if (refParam && refParam !== name) {
+      const refSnap = await db.collection('users').doc(refParam).get();
+      if (refSnap.exists) {
+        coins = REFERRAL_BONUS;
+        referredBy = refParam;
+        await db.collection('users').doc(refParam).update({
+          coins: firebase.firestore.FieldValue.increment(REFERRAL_BONUS),
+          referralCount: firebase.firestore.FieldValue.increment(1),
+          referredUsers: firebase.firestore.FieldValue.arrayUnion(name)
+        });
+      }
+    }
+
+    await db.collection('users').doc(name).set({
+      name, password: pass,
+      created: Date.now(),
+      bestScore: 0, bestLevel: 0,
+      gamesPlayed: 0, totalPoints: 0,
+      lastPlayed: null,
+      coins, referredBy,
+      referralCount: 0, referredUsers: []
+    });
+
+    setSession(name);
+    if (referredBy) {
+      succ.textContent = '🎉 Regisztráltál és kaptál 10 érmét!';
+      setTimeout(() => { window.location.href = 'game.html'; }, 1200);
+    } else {
+      window.location.href = 'game.html';
+    }
+  } catch(e) {
+    err.textContent = 'Hiba: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Fiók létrehozása';
+  }
+}
+
+function doLogout() { clearSession(); location.reload(); }
+
+async function loadLeaderboard() {
+  const snap = await db.collection('users').orderBy('bestScore','desc').limit(8).get();
+  const el = document.getElementById('leaderboard-home');
+  if (snap.empty) { el.innerHTML = '<li style="color:var(--muted);padding:16px;">Még nincs játékos.</li>'; return; }
+  const ranks = ['gold','silver','bronze'];
+  let i = 0, html = '';
+  snap.forEach(d => {
+    const u = d.data();
+    html += `<li>
+      <span class="lb-rank ${ranks[i]||''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`}</span>
+      <span class="lb-name"><a href="profile.html?player=${encodeURIComponent(u.name)}">${u.name}</a></span>
+      <span style="display:flex;gap:10px;">
+        <span style="color:var(--gold);font-size:.8rem;">${u.coins||0} 🪙</span>
+        <span class="lb-score">${u.bestScore||0} pont</span>
+      </span>
+    </li>`;
+    i++;
+  });
+  el.innerHTML = html;
+}
+
+async function init() {
+  const name = getSession();
+
+  if (refParam && !name) {
+    try {
+      const refSnap = await db.collection('users').doc(refParam).get();
+      if (refSnap.exists) {
+        document.getElementById('referral-notice').style.display = 'block';
+        document.getElementById('referral-notice-text').textContent = refParam + ' meghívott téged!';
+        switchTab('register');
+        document.getElementById('reg-ref-info').style.display = 'block';
+        document.getElementById('reg-ref-name').textContent = refParam;
+      }
+    } catch(e) {}
+  }
+
+  if (name) {
+    try {
+      const snap = await db.collection('users').doc(name).get();
+      if (snap.exists) {
+        const u = snap.data();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('welcome-screen').style.display = 'block';
+        document.getElementById('welcome-name').textContent = u.name;
+        document.getElementById('welcome-coins').textContent = (u.coins||0) + ' 🪙';
+        document.getElementById('nav-user').textContent = u.name;
+        document.getElementById('nav-profile').style.display = 'inline';
+        document.getElementById('nav-profile').href = 'profile.html?player=' + encodeURIComponent(u.name);
+        document.getElementById('my-profile-link').href = 'profile.html?player=' + encodeURIComponent(u.name);
+        document.getElementById('nav-logout').style.display = 'inline';
+        await loadLeaderboard();
+        return;
+      }
+    } catch(e) {}
+    clearSession();
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'block';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const active = document.querySelector('.tab-content.active');
+  if (!active) return;
+  if (active.id === 'tab-login') doLogin(); else doRegister();
+});
+
+init();
+</script>
+</body>
+</html>

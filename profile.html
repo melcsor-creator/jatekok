@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profil – Az Elveszett Útvesztő 🚪</title>
+  <link rel="stylesheet" href="style.css?v=5" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="logo">🚪 Útvesztő</div>
+  <nav class="nav-links">
+    <span id="nav-user" style="color:var(--muted);font-size:.9rem;"></span>
+    <a href="game.html" id="nav-game" style="display:none;">Játék</a>
+    <a href="index.html">Főoldal</a>
+    <a href="leaderboard.html">🏆 Ranglista</a>
+    <button id="nav-logout" style="display:none;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;" onclick="doLogout()">Kilépés</button>
+  </nav>
+</header>
+
+<main class="container">
+  <div id="loading" class="center" style="margin-top:80px;color:var(--muted);">
+    <div style="font-size:2.5rem;margin-bottom:12px;">⏳</div><div>Betöltés...</div>
+  </div>
+
+  <div id="not-found" style="display:none;" class="card center fadeIn" style="margin-top:40px;">
+    <div style="font-size:3rem;margin-bottom:12px;">🔍</div>
+    <h2>Profil nem található</h2>
+    <p style="color:var(--muted);margin:12px 0 20px;">Ez a felhasználó nem létezik.</p>
+    <a href="index.html" class="btn btn-outline">← Vissza</a>
+  </div>
+
+  <div id="profile-content" style="display:none;" class="fadeIn">
+    <div class="card">
+      <div class="profile-header">
+        <div class="avatar" id="avatar-text"></div>
+        <div class="info">
+          <h2 id="profile-name"></h2>
+          <p id="profile-joined" style="color:var(--muted);font-size:.9rem;"></p>
+          <p id="profile-last" style="color:var(--muted);font-size:.9rem;"></p>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-best-score">0</div>
+          <div class="stat-label">Legjobb pontszám</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-best-level">0</div>
+          <div class="stat-label">Legjobb szint</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-games">0</div>
+          <div class="stat-label">Lejátszott meccsek</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--gold);" id="stat-coins">0 🪙</div>
+          <div class="stat-label">Érmék</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:.85rem;color:var(--muted);">Legjobb szint</span>
+          <span style="font-size:.85rem;color:var(--muted);" id="progress-label">0 / 10</span>
+        </div>
+        <div style="background:var(--bg2);border-radius:999px;height:10px;overflow:hidden;">
+          <div id="progress-bar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:999px;transition:width .5s ease;width:0%;"></div>
+        </div>
+      </div>
+
+      <div id="referral-section" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:20px;">
+        <h3 style="margin-bottom:6px;font-size:1rem;">👥 Meghívott barátok</h3>
+        <p style="color:var(--muted);font-size:.85rem;">
+          Eddig <strong id="referral-count" style="color:var(--accent);">0</strong> barátot hívtál meg —
+          összesen <strong id="referral-earned" style="color:var(--gold);">0 🪙</strong> érmét szereztél.
+        </p>
+      </div>
+
+      <div class="share-box" id="share-box" style="display:none;">
+        <h3>🔗 Barát meghívása</h3>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:4px;">Küldd el ezt a linket!</p>
+        <p style="color:var(--gold);font-size:.82rem;margin-bottom:10px;">🪙 Aki regisztrál a te linkeden: ő kap <strong>10 érmét</strong>, te is kapsz <strong>10 érmét</strong>.</p>
+        <div class="share-url-row">
+          <input type="text" id="share-url" readonly />
+          <button class="btn btn-sm btn-primary" onclick="copyShareUrl()">Másolás</button>
+        </div>
+        <div id="copy-msg" style="color:var(--green);font-size:.82rem;margin-top:6px;min-height:18px;"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <h3 style="margin-bottom:18px;font-size:1.1rem;">🏆 Toplista</h3>
+      <ul class="leaderboard" id="leaderboard"></ul>
+    </div>
+  </div>
+</main>
+
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+<script>
+const SESSION_KEY = 'doorpuzzle_session';
+const loggedInName = localStorage.getItem(SESSION_KEY);
+
+function doLogout() { localStorage.removeItem(SESSION_KEY); window.location.href = 'index.html'; }
+
+function formatDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleDateString('hu-HU', { year:'numeric', month:'long', day:'numeric' });
+}
+
+function copyShareUrl() {
+  const input = document.getElementById('share-url');
+  input.select();
+  navigator.clipboard.writeText(input.value).then(() => {
+    const msg = document.getElementById('copy-msg');
+    msg.textContent = '✅ Link másolva!';
+    setTimeout(() => { msg.textContent = ''; }, 2500);
+  });
+}
+
+async function init() {
+  if (loggedInName) {
+    document.getElementById('nav-user').textContent = loggedInName;
+    document.getElementById('nav-game').style.display = 'inline';
+    document.getElementById('nav-logout').style.display = 'inline';
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const targetName = params.get('player') || loggedInName;
+
+  if (!targetName) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('not-found').style.display = 'block';
+    return;
+  }
+
+  try {
+    const snap = await db.collection('users').doc(targetName).get();
+    document.getElementById('loading').style.display = 'none';
+
+    if (!snap.exists) {
+      document.getElementById('not-found').style.display = 'block';
+      return;
+    }
+
+    const u = snap.data();
+    document.getElementById('profile-content').style.display = 'block';
+    document.title = u.name + ' profilja – Útvesztő';
+
+    document.getElementById('avatar-text').textContent = u.name.charAt(0).toUpperCase();
+    document.getElementById('profile-name').textContent = u.name;
+    document.getElementById('profile-joined').textContent = 'Csatlakozott: ' + formatDate(u.created);
+    document.getElementById('profile-last').textContent = 'Utolsó játék: ' + formatDate(u.lastPlayed);
+    document.getElementById('stat-best-score').textContent = u.bestScore || 0;
+    document.getElementById('stat-best-level').textContent = u.bestLevel || 0;
+    document.getElementById('stat-games').textContent = u.gamesPlayed || 0;
+    document.getElementById('stat-coins').textContent = (u.coins||0) + ' 🪙';
+
+    const pct = Math.min(100, Math.round(((u.bestLevel||0)/10)*100));
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-label').textContent = (u.bestLevel||0) + ' / 10';
+
+    document.getElementById('referral-count').textContent = u.referralCount || 0;
+    document.getElementById('referral-earned').textContent = ((u.referralCount||0)*10) + ' 🪙';
+
+    if (loggedInName === u.name) {
+      document.getElementById('share-box').style.display = 'block';
+      const base = window.location.href.split('profile.html')[0];
+      document.getElementById('share-url').value = base + 'index.html?ref=' + encodeURIComponent(u.name);
+    }
+
+    await loadLeaderboard(u.name);
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('not-found').style.display = 'block';
+  }
+}
+
+async function loadLeaderboard(highlightName) {
+  const snap = await db.collection('users').orderBy('bestScore','desc').limit(10).get();
+  const el = document.getElementById('leaderboard');
+  if (snap.empty) { el.innerHTML = '<li style="color:var(--muted);padding:16px;">Még nincs játékos.</li>'; return; }
+  const ranks = ['gold','silver','bronze'];
+  let i = 0, html = '';
+  snap.forEach(d => {
+    const u = d.data();
+    const isMe = u.name === highlightName;
+    html += `<li style="${isMe?'background:rgba(124,92,252,0.12);border-radius:8px;':''}">
+      <span class="lb-rank ${ranks[i]||''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`}</span>
+      <span class="lb-name"><a href="profile.html?player=${encodeURIComponent(u.name)}">${u.name}${isMe?' 👈':''}</a></span>
+      <span style="display:flex;gap:10px;align-items:center;">
+        <span style="color:var(--gold);font-size:.8rem;">${u.coins||0} 🪙</span>
+        <span class="lb-score">${u.bestScore||0} pont</span>
+      </span>
+    </li>`;
+    i++;
+  });
+  el.innerHTML = html;
+}
+
+init();
+</script>
+</body>
+</html>
