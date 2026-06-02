@@ -46,6 +46,7 @@
     <a href="index.html">Főoldal</a>
     <a href="leaderboard.html" style="color:var(--accent);">🏆 Ranglista</a>
     <a href="game.html" id="nav-game" style="display:none;">Játék</a>
+    <button onclick="openSettings()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;">⚙️ Beállítások</button>
     <span id="nav-user" style="color:var(--muted);font-size:.9rem;"></span>
     <a href="profile.html" id="nav-profile" style="display:none;">Profilom</a>
     <button id="nav-logout" style="display:none;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;" onclick="doLogout()">Kilépés</button>
@@ -96,6 +97,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="firebase.js"></script>
+<script src="settings.js"></script>
 <script>
 const SESSION_KEY = 'doorpuzzle_session';
 const myName = localStorage.getItem(SESSION_KEY);

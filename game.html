@@ -159,6 +159,27 @@ const HINT_COST = 3;
 const STREAK_BONUS_AT = 5;
 const STREAK_BONUS_COINS = 5;
 
+// ── Kitalált szavak mentése localStorage-ba ──
+function solvedKey() {
+  return 'hangman_solved_' + username + '_' + currentDifficulty + '_' + currentCat;
+}
+
+function loadSolvedWords() {
+  try {
+    const raw = localStorage.getItem(solvedKey());
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch(e) { return new Set(); }
+}
+
+function saveSolvedWord(word) {
+  try {
+    const key = solvedKey();
+    const existing = loadSolvedWords();
+    existing.add(word);
+    localStorage.setItem(key, JSON.stringify([...existing]));
+  } catch(e) {}
+}
+
 const CAT_ICONS = { allatok:'🐾', etelek:'🍽️', varosok:'🏙️', sport:'⚽', termeszet:'🌿', targyak:'🔧' };
 
 function selectDifficulty(diff) {
@@ -192,7 +213,7 @@ function startCategory(cat) {
   catWords = [...getWords(currentDifficulty, cat)].sort(() => Math.random() - 0.5);
   wordIndex = 0;
   sessionXP = 0;
-  solvedWords = new Set();
+  solvedWords = loadSolvedWords(); // betöltjük a már kitalált szavakat
   document.getElementById('cat-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
   document.getElementById('cat-label-text').textContent = CATEGORIES[cat] + ' · ' + DIFFICULTY[currentDifficulty].label;
@@ -211,13 +232,13 @@ function loadWord() {
   const available = catWords.filter(e => !solvedWords.has(e.word));
 
   if (available.length === 0) {
-    // Minden szó kitalálva — visszajelzés
     const fb = document.getElementById('feedback-msg');
-    fb.textContent = '🎉 Minden szót kitaláltál ebben a kategóriában!';
+    fb.textContent = '🎉 Minden szót kitaláltál! A lista újraindul...';
     fb.className = 'feedback-msg show correct';
-    document.getElementById('next-btn') && (document.getElementById('next-btn').style.display = 'none');
-    // Visszadobjuk a kategória képernyőre
-    setTimeout(() => goToCatScreen(), 2500);
+    localStorage.removeItem(solvedKey());
+    solvedWords = new Set();
+    catWords = [...getWords(currentDifficulty, currentCat)].sort(() => Math.random() - 0.5);
+    setTimeout(() => { fb.className = 'feedback-msg'; loadWord(); }, 2500);
     return;
   }
 
@@ -295,6 +316,7 @@ function guessLetter(letter) {
     const allFound = currentWord.split('').every(ch => ch === ' ' || guessedLetters.includes(ch));
     if (allFound) {
       solvedWords.add(currentWord);
+      saveSolvedWord(currentWord); // elmentjük localStorage-ba
       const baseXP = DIFFICULTY[currentDifficulty].xp;
       sessionXP = wrongCount === 0 ? baseXP * 2 : baseXP;
       setTimeout(() => showResult(true), 600);
