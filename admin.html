@@ -214,7 +214,8 @@ function renderUsers() {
       <td style="display:flex;gap:6px;flex-wrap:wrap;">
         <button class="action-btn" onclick="quickXP('${u.name}', 10)">+10 XP</button>
         <button class="action-btn" onclick="quickXP('${u.name}', -10)">-10 XP</button>
-        <button class="action-btn danger" onclick="resetUser('${u.name}')">Reset</button>
+        <button class="action-btn danger" onclick="resetXP('${u.name}')">XP reset</button>
+        <button class="action-btn danger" onclick="resetScore('${u.name}')">Pont reset</button>
       </td>
     </tr>`;
   }).join('');
@@ -262,13 +263,28 @@ async function applyXP(name, amount) {
   }
 }
 
-async function resetUser(name) {
-  if (!confirm(`Biztosan reseteled ${name} XP-jét 0-ra?`)) return;
+async function resetXP(name) {
+  if (!confirm('Biztosan reseteled ' + name + ' XP-jét 0-ra?')) return;
   await db.collection('users').doc(name).update({ xp: 0 });
   const idx = allUsers.findIndex(x => x.name === name);
   if (idx >= 0) allUsers[idx].xp = 0;
   renderUsers();
-  showToast(`🔄 ${name} XP resetelve.`);
+  renderStats();
+  showToast('🔄 ' + name + ' XP resetelve.');
+}
+
+async function resetScore(name) {
+  if (!confirm('Biztosan törlöd ' + name + ' pontszámát?')) return;
+  await db.collection('users').doc(name).update({ bestScore: 0, totalPoints: 0, gamesPlayed: 0 });
+  const idx = allUsers.findIndex(x => x.name === name);
+  if (idx >= 0) {
+    allUsers[idx].bestScore = 0;
+    allUsers[idx].totalPoints = 0;
+    allUsers[idx].gamesPlayed = 0;
+  }
+  renderUsers();
+  renderStats();
+  showToast('🔄 ' + name + ' pontszáma törölve.');
 }
 
 // Belépés ellenőrzés

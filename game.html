@@ -15,14 +15,43 @@
     <a href="profile.html" id="nav-profile" style="display:none;">Profilom</a>
     <a href="index.html">Főoldal</a>
     <a href="leaderboard.html">🏆 Ranglista</a>
+    <button onclick="openSettings()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;">⚙️ Beállítások</button>
     <button onclick="doLogout()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;">Kilépés</button>
   </nav>
 </header>
 
+<!-- NEHÉZSÉG VÁLASZTÓ -->
+<div class="cat-screen fadeIn" id="diff-screen">
+  <h2 style="font-size:1.6rem;font-weight:900;">Válassz nehézséget!</h2>
+  <p style="color:var(--muted);margin-top:6px;font-size:.92rem;">A nehezebb szavak több XP-t érnek.</p>
+  <div class="cat-grid" style="grid-template-columns:repeat(3,1fr);margin-top:24px;" id="diff-grid">
+    <button class="cat-btn" onclick="selectDifficulty('easy')">
+      <div class="ci">🟢</div>
+      <div class="cn">Könnyű</div>
+      <div class="cc">+1 XP / szó</div>
+    </button>
+    <button class="cat-btn" onclick="selectDifficulty('medium')">
+      <div class="ci">🟡</div>
+      <div class="cn">Közepes</div>
+      <div class="cc">+2 XP / szó</div>
+    </button>
+    <button class="cat-btn" onclick="selectDifficulty('hard')">
+      <div class="ci">🔴</div>
+      <div class="cn">Nehéz</div>
+      <div class="cc">+4 XP / szó</div>
+    </button>
+  </div>
+</div>
+
 <!-- KATEGÓRIA VÁLASZTÓ -->
-<div class="cat-screen fadeIn" id="cat-screen">
-  <h2 style="font-size:1.6rem;font-weight:900;">Válassz kategóriát!</h2>
-  <p style="color:var(--muted);margin-top:6px;font-size:.92rem;">Találd ki az elrejtett szót betűnként — 6 téves tipp és akasztva vagy!</p>
+<div class="cat-screen fadeIn" id="cat-screen" style="display:none;">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+    <button onclick="goToDiffScreen()" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:6px 14px;cursor:pointer;font-family:inherit;">← Vissza</button>
+    <div>
+      <h2 style="font-size:1.6rem;font-weight:900;">Válassz kategóriát!</h2>
+      <p style="color:var(--muted);font-size:.88rem;">Nehézség: <strong id="diff-label-display"></strong></p>
+    </div>
+  </div>
   <div class="cat-grid" id="cat-grid"></div>
 </div>
 
@@ -66,6 +95,14 @@
   <!-- ABC -->
   <div class="abc-grid" id="abc-grid"></div>
 
+  <!-- Csillag vásárlás -->
+  <div style="text-align:center;margin-top:14px;">
+    <button class="hint-buy-btn" id="buy-hint-btn" onclick="buyHint()">
+      ⭐ Betű felfedése — 3 csillagért
+    </button>
+    <div id="coins-display" style="color:var(--muted);font-size:.82rem;margin-top:6px;"></div>
+  </div>
+
 </div>
 
 <!-- EREDMÉNY OVERLAY -->
@@ -90,6 +127,7 @@
 <script src="firebase.js?v=7"></script>
 <script src="data.js?v=7"></script>
 <script src="ranks.js"></script>
+<script src="settings.js"></script>
 <script>
 const SESSION_KEY = 'doorpuzzle_session';
 const username = localStorage.getItem(SESSION_KEY);
@@ -102,25 +140,45 @@ document.getElementById('res-profile-link').href = 'profile.html?player=' + enco
 
 function doLogout() { localStorage.removeItem(SESSION_KEY); window.location.href = 'index.html'; }
 
-const HU_ABC = ['A','Á','B','C','CS','D','DZ','E','É','F','G','GY','H','I','Í','J','K','L','LY','M','N','NY','O','Ó','Ö','Ő','P','R','S','SZ','T','TY','U','Ú','Ü','Ű','V','Z','ZS'];
+const HU_ABC = ['A','Á','B','C','D','E','É','F','G','H','I','Í','J','K','L','M','N','O','Ó','Ö','Ő','P','R','S','T','U','Ú','Ü','Ű','V','Y','Z'];
 const HM_PARTS = ['hm-head','hm-body','hm-arm-l','hm-arm-r','hm-leg-l','hm-leg-r'];
 
 let currentCat = null;
+let currentDifficulty = 'easy';
 let catWords = [];
 let wordIndex = 0;
 let currentWord = '';
 let currentHint = '';
 let guessedLetters = [];
 let wrongCount = 0;
-let sessionXP = 0; // ebben a játékmenetben szerzett XP
+let sessionXP = 0;
+let userCoins = 0;
+let solvedStreak = 0;
+let solvedWords = new Set();
+const HINT_COST = 3;
+const STREAK_BONUS_AT = 5;
+const STREAK_BONUS_COINS = 5;
 
 const CAT_ICONS = { allatok:'🐾', etelek:'🍽️', varosok:'🏙️', sport:'⚽', termeszet:'🌿', targyak:'🔧' };
+
+function selectDifficulty(diff) {
+  currentDifficulty = diff;
+  document.getElementById('diff-screen').style.display = 'none';
+  document.getElementById('cat-screen').style.display = 'block';
+  document.getElementById('diff-label-display').textContent = DIFFICULTY[diff].label;
+  buildCatScreen();
+}
+
+function goToDiffScreen() {
+  document.getElementById('cat-screen').style.display = 'none';
+  document.getElementById('diff-screen').style.display = 'block';
+}
 
 // ── Kategória képernyő ──
 function buildCatScreen() {
   const grid = document.getElementById('cat-grid');
   grid.innerHTML = Object.entries(CATEGORIES).map(([key, label]) => {
-    const count = WORDS[key] ? WORDS[key].length : 0;
+    const count = getWords(currentDifficulty, key).length;
     return '<button class="cat-btn" onclick="startCategory(\'' + key + '\')">' +
       '<div class="ci">' + (CAT_ICONS[key]||'🎯') + '</div>' +
       '<div class="cn">' + label + '</div>' +
@@ -131,25 +189,40 @@ function buildCatScreen() {
 
 function startCategory(cat) {
   currentCat = cat;
-  catWords = [...WORDS[cat]].sort(() => Math.random() - 0.5);
+  catWords = [...getWords(currentDifficulty, cat)].sort(() => Math.random() - 0.5);
   wordIndex = 0;
   sessionXP = 0;
+  solvedWords = new Set();
   document.getElementById('cat-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
-  document.getElementById('cat-label-text').textContent = CATEGORIES[cat];
+  document.getElementById('cat-label-text').textContent = CATEGORIES[cat] + ' · ' + DIFFICULTY[currentDifficulty].label;
   loadWord();
 }
 
 function goToCatScreen() {
   document.getElementById('result-overlay').style.display = 'none';
   document.getElementById('game-screen').style.display = 'none';
-  document.getElementById('cat-screen').style.display = 'block';
+  document.getElementById('diff-screen').style.display = 'block';
 }
 
 // ── Szó betöltése ──
 function loadWord() {
-  if (wordIndex >= catWords.length) { wordIndex = 0; catWords.sort(() => Math.random() - 0.5); }
-  const entry = catWords[wordIndex];
+  // Kihagyja a már kitalált szavakat
+  const available = catWords.filter(e => !solvedWords.has(e.word));
+
+  if (available.length === 0) {
+    // Minden szó kitalálva — visszajelzés
+    const fb = document.getElementById('feedback-msg');
+    fb.textContent = '🎉 Minden szót kitaláltál ebben a kategóriában!';
+    fb.className = 'feedback-msg show correct';
+    document.getElementById('next-btn') && (document.getElementById('next-btn').style.display = 'none');
+    // Visszadobjuk a kategória képernyőre
+    setTimeout(() => goToCatScreen(), 2500);
+    return;
+  }
+
+  // Véletlenszerű szó a még nem kitaláltak közül
+  const entry = available[Math.floor(Math.random() * available.length)];
   currentWord = entry.word.toUpperCase();
   currentHint = entry.hint;
   guessedLetters = [];
@@ -214,19 +287,16 @@ function guessLetter(letter) {
   const fb = document.getElementById('feedback-msg');
 
   if (currentWord.includes(letter)) {
-    // +1 XP helyes betűnként
-    const occurrences = currentWord.split('').filter(c => c === letter).length;
-    sessionXP += XP_VALUES.correct_letter * occurrences;
-
     renderWord();
-    fb.textContent = '+' + (XP_VALUES.correct_letter * occurrences) + ' XP! Helyes betű!';
+    fb.textContent = '✅ Helyes betű!';
     fb.className = 'feedback-msg show correct';
+    playSound('correct');
 
     const allFound = currentWord.split('').every(ch => ch === ' ' || guessedLetters.includes(ch));
     if (allFound) {
-      // +5 XP szó megtalálva, +10 ha hibátlan
-      const bonus = wrongCount === 0 ? XP_VALUES.word_perfect : XP_VALUES.word_solved;
-      sessionXP += bonus;
+      solvedWords.add(currentWord);
+      const baseXP = DIFFICULTY[currentDifficulty].xp;
+      sessionXP = wrongCount === 0 ? baseXP * 2 : baseXP;
       setTimeout(() => showResult(true), 600);
     }
   } else {
@@ -238,6 +308,7 @@ function guessLetter(letter) {
     fb.className = 'feedback-msg show wrong';
     fb.classList.add('shake');
     setTimeout(() => fb.classList.remove('shake'), 400);
+    playSound('wrong');
 
     if (wrongCount >= MAX_WRONG) {
       setTimeout(() => showResult(false), 600);
@@ -260,6 +331,14 @@ async function showResult(won) {
   }
 
   const xpEarned = won ? sessionXP : 0;
+  let bonusCoins = 0;
+
+  if (won) {
+    solvedStreak++;
+    if (solvedStreak % STREAK_BONUS_AT === 0) bonusCoins = STREAK_BONUS_COINS;
+  } else {
+    solvedStreak = 0;
+  }
 
   try {
     const ref = db.collection('users').doc(username);
@@ -271,21 +350,31 @@ async function showResult(won) {
       const oldRank = getRank(oldXP).name;
       const newRank = getRank(newXP).name;
 
-      await ref.update({
+      const updates = {
         gamesPlayed: (u.gamesPlayed||0) + 1,
         lastPlayed: Date.now(),
         xp: newXP,
-      });
-
+      };
+      if (bonusCoins > 0) {
+        updates.coins = firebase.firestore.FieldValue.increment(bonusCoins);
+        userCoins += bonusCoins;
+        updateCoinsDisplay();
+        playSound('bonus');
+      }
+      await ref.update(updates);
       renderRank(newXP);
 
-      // Rang változás jelzés
+      let extraMsg = '';
       if (won && oldRank !== newRank) {
-        document.getElementById('res-rank-up').textContent =
-          '🎉 Új rang: ' + getRank(newXP).icon + ' ' + newRank + '!';
-      } else {
-        document.getElementById('res-rank-up').textContent = '';
+        extraMsg = '🎉 Új rang: ' + getRank(newXP).icon + ' ' + newRank + '!';
+        playSound('rank');
       }
+      if (bonusCoins > 0) extraMsg = '🎁 +' + bonusCoins + ' ⭐ sorozat bónusz! ' + extraMsg;
+      if (!extraMsg && won) {
+        const left = STREAK_BONUS_AT - (solvedStreak % STREAK_BONUS_AT);
+        extraMsg = '🔥 Sorozat: ' + solvedStreak + ' | Még ' + left + ' szó a bónuszig!';
+      }
+      document.getElementById('res-rank-up').textContent = extraMsg;
     }
   } catch(e) { console.error(e); }
 
@@ -297,7 +386,7 @@ async function showResult(won) {
     ? '+' + xpEarned + ' XP' + (wrongCount === 0 ? ' (hibátlan! 🌟)' : '')
     : 'Nem szereztél XP-t';
 
-  // Session XP reset következő szóhoz
+  if (won) playSound('win'); else playSound('lose');
   sessionXP = 0;
 }
 
@@ -320,8 +409,57 @@ function renderRank(xp) {
 async function loadUserXP() {
   try {
     const snap = await db.collection('users').doc(username).get();
-    if (snap.exists) renderRank(snap.data().xp || 0);
+    if (snap.exists) {
+      renderRank(snap.data().xp || 0);
+      userCoins = snap.data().coins || 0;
+      updateCoinsDisplay();
+    }
   } catch(e) {}
+}
+
+function updateCoinsDisplay() {
+  const btn = document.getElementById('buy-hint-btn');
+  const disp = document.getElementById('coins-display');
+  if (btn) btn.disabled = userCoins < HINT_COST;
+  if (disp) disp.textContent = 'Egyenleged: ' + userCoins + ' ⭐';
+}
+
+async function buyHint() {
+  if (userCoins < HINT_COST) return;
+
+  // Megkeresi a még nem kitalált betűket
+  const hidden = [...new Set(
+    currentWord.split('').filter(c => c !== ' ' && !guessedLetters.includes(c))
+  )];
+  if (hidden.length === 0) return;
+
+  // Véletlenszerű betű felfedése
+  const letter = hidden[Math.floor(Math.random() * hidden.length)];
+
+  // Csillag levonás Firebase-ben
+  try {
+    userCoins -= HINT_COST;
+    await db.collection('users').doc(username).update({
+      coins: firebase.firestore.FieldValue.increment(-HINT_COST)
+    });
+    updateCoinsDisplay();
+  } catch(e) { console.error(e); return; }
+
+  // Betű tippelése (ingyen, jelöli a gombokat is)
+  guessedLetters.push(letter);
+  renderWord();
+
+  const fb = document.getElementById('feedback-msg');
+  fb.textContent = '💡 Felfedett betű: ' + letter + ' (−' + HINT_COST + ' ⭐)';
+  fb.className = 'feedback-msg show correct';
+
+  // ABC gomb frissítése
+  const btn = [...document.querySelectorAll('.letter-btn')].find(b => b.textContent === letter);
+  if (btn) { btn.disabled = true; btn.classList.add('correct'); }
+
+  // Megvan az összes betű?
+  const allFound = currentWord.split('').every(ch => ch === ' ' || guessedLetters.includes(ch));
+  if (allFound) setTimeout(() => showResult(true), 600);
 }
 
 document.addEventListener('keydown', e => {
@@ -331,7 +469,6 @@ document.addEventListener('keydown', e => {
   if (HU_ABC.includes(key) && !guessedLetters.includes(key)) guessLetter(key);
 });
 
-buildCatScreen();
 loadUserXP();
 </script>
 </body>

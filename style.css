@@ -16,6 +16,17 @@
   --shadow: 0 4px 32px rgba(124,92,252,0.18);
 }
 
+/* Világos téma */
+body.light {
+  --bg: #f0f0f8;
+  --bg2: #e2e2f0;
+  --card: #ffffff;
+  --border: #c8c8e0;
+  --text: #1a1a35;
+  --muted: #6666aa;
+  --shadow: 0 4px 32px rgba(124,92,252,0.12);
+}
+
 body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; line-height: 1.6; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -216,7 +227,14 @@ a:hover { text-decoration: underline; }
 .cat-btn .cn { font-size: .95rem; font-weight: 700; }
 .cat-btn .cc { font-size: .75rem; color: var(--muted); margin-top: 4px; }
 
-/* ANIMÁCIÓK */
+.hint-buy-btn {
+  background: var(--bg2); border: 1px solid var(--gold);
+  border-radius: 8px; color: var(--gold); padding: 9px 20px;
+  font-size: .88rem; font-weight: 700; cursor: pointer;
+  transition: all .2s; font-family: inherit;
+}
+.hint-buy-btn:hover:not(:disabled) { background: rgba(245,200,66,0.1); }
+.hint-buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 @keyframes popIn  { 0% { transform:scale(0.5); opacity:0; } 70% { transform:scale(1.2); } 100% { transform:scale(1); opacity:1; } }
 @keyframes shake  { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }

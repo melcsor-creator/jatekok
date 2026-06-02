@@ -13,9 +13,8 @@ const RANKS = [
 
 // XP értékek
 const XP_VALUES = {
-  correct_letter: 1,  // helyes betű
-  word_solved: 5,     // szó megtalálva
-  word_perfect: 10,   // szó megtalálva 0 hibával
+  word_solved: 1,    // szó megtalálva
+  word_perfect: 2,   // szó megtalálva 0 hibával
 };
 
 function getRank(xp) {
