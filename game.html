@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Játék – Az Elveszett Útvesztő 🚪</title>
-  <link rel="stylesheet" href="style.css?v=5" />
+  <title>Képrejtvény – Találd ki!</title>
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
 
 <header class="site-header">
-  <div class="logo">🚪 Útvesztő</div>
+  <div class="logo">🖼️ Képrejtvény</div>
   <nav class="nav-links">
     <span id="nav-user" style="color:var(--muted);font-size:.9rem;"></span>
     <a href="profile.html" id="nav-profile" style="display:none;">Profilom</a>
@@ -19,59 +19,93 @@
   </nav>
 </header>
 
-<main class="container">
+<div class="game-container">
 
-  <div id="continue-screen" style="display:none;" class="card fadeIn" style="margin-bottom:20px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
-      <div>
-        <div style="font-weight:700;font-size:1.05rem;">▶ Folytatod ahol abbahagytad?</div>
-        <div style="color:var(--muted);font-size:.88rem;margin-top:4px;" id="continue-info"></div>
-      </div>
-      <div style="display:flex;gap:10px;">
-        <button class="btn btn-primary btn-sm" onclick="continueGame()">Folytatás</button>
-        <button class="btn btn-outline btn-sm" onclick="freshStart()">Újrakezdem</button>
-      </div>
+  <!-- Kategória választó -->
+  <div id="cat-screen" class="fadeIn">
+    <div style="margin-bottom:20px;">
+      <h2 style="font-size:1.5rem;font-weight:800;">Válassz kategóriát!</h2>
+      <p style="color:var(--muted);font-size:.9rem;margin-top:4px;">Minél kevesebb tippel oldod meg, annál több pontot kapsz.</p>
+    </div>
+    <div class="cat-grid" id="cat-grid"></div>
+  </div>
+
+  <!-- Játék képernyő -->
+  <div id="game-screen" style="display:none;" class="fadeIn">
+
+    <div class="hud">
+      <div class="lives" id="lives-display"></div>
+      <div class="round-info">Kör: <span id="round-num">1</span> / <span id="round-total">?</span></div>
+      <div class="score">⭐ <span id="score-display">0</span></div>
+    </div>
+
+    <!-- Kép -->
+    <div class="image-box">
+      <img id="puzzle-img" src="" alt="Találd ki!" class="blurred" />
+      <div class="blur-label" id="blur-label">🔍 Mi látható a képen?</div>
+    </div>
+
+    <!-- Kategória -->
+    <div class="center" style="margin-bottom:12px;">
+      <span class="category-badge" id="cat-badge"></span>
+    </div>
+
+    <!-- Szóhossz kijelző -->
+    <div class="word-display" id="word-display"></div>
+
+    <!-- Tipp gombok -->
+    <div class="hint-bar">
+      <button class="hint-btn" id="hint1-btn" onclick="useHint(1)">
+        💡 Betű <span class="cost">(-50 pont)</span>
+      </button>
+      <button class="hint-btn" id="hint2-btn" onclick="useHint(2)">
+        📝 Leírás <span class="cost">(-75 pont)</span>
+      </button>
+      <button class="hint-btn" id="hint3-btn" onclick="useHint(3)">
+        🔍 Fókusz <span class="cost">(-100 pont)</span>
+      </button>
+    </div>
+
+    <!-- Tipp szöveg -->
+    <div class="hint-text" id="hint-text"></div>
+
+    <!-- Bevitel -->
+    <div class="input-row">
+      <input type="text" id="guess-input" placeholder="Írd be a választ..." autocomplete="off" autocorrect="off" spellcheck="false" />
+      <button class="btn btn-primary" onclick="submitGuess()">Küldés</button>
+    </div>
+
+    <!-- Visszajelzés -->
+    <div class="feedback" id="feedback"></div>
+
+    <!-- Következő gomb -->
+    <div class="center" style="margin-top:8px;">
+      <button class="btn btn-primary" id="next-btn" style="display:none;" onclick="nextPuzzle()">Következő ➜</button>
     </div>
   </div>
 
-  <div class="hud fadeIn">
-    <div class="lives" id="lives-display"></div>
-    <div class="level-info">Szint: <span id="level-num">1</span> / <span id="level-total">10</span></div>
-    <div class="score">⭐ <span id="score-display">0</span></div>
-  </div>
-
-  <div id="game-screen" class="card fadeIn">
-    <div class="story-box" id="story-box"></div>
-    <div class="question-box"><h2 id="question-text"></h2></div>
-    <div class="doors-grid" id="doors-grid"></div>
-    <div class="feedback-bar" id="feedback-bar"></div>
-    <div class="next-btn-wrap">
-      <button class="btn btn-primary" id="next-btn" style="display:none;" onclick="nextLevel()">Tovább ➜</button>
-    </div>
-  </div>
-
-  <div id="result-screen" class="card result-screen fadeIn" style="display:none;">
+  <!-- Eredmény -->
+  <div id="result-screen" style="display:none;" class="card result-screen fadeIn">
     <div class="big-icon" id="result-icon"></div>
     <h1 id="result-title"></h1>
     <div class="result-score" id="result-score"></div>
-    <p id="result-sub"></p>
+    <p id="result-sub" style="color:var(--muted);"></p>
     <div class="result-actions">
-      <button class="btn btn-primary" onclick="freshStart()">🔄 Újrakezdés</button>
+      <button class="btn btn-primary" onclick="backToCategories()">🔄 Újra</button>
       <a href="profile.html" id="result-profile-link" class="btn btn-outline">👤 Profil</a>
     </div>
   </div>
 
-</main>
+</div>
 
-<!-- Firebase compat SDK -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="firebase.js"></script>
-<script src="data.js?v=5"></script>
+<script src="data.js?v=6"></script>
 <script>
 const SESSION_KEY = 'doorpuzzle_session';
 const username = localStorage.getItem(SESSION_KEY);
-
 if (!username) { window.location.href = 'index.html'; }
 
 document.getElementById('nav-user').textContent = username || '';
@@ -81,100 +115,226 @@ document.getElementById('result-profile-link').href = 'profile.html?player=' + e
 
 function doLogout() { localStorage.removeItem(SESSION_KEY); window.location.href = 'index.html'; }
 
-function saveKey() { return 'doorpuzzle_progress_' + username; }
-function saveProgress() {
-  localStorage.setItem(saveKey(), JSON.stringify({ currentLevel, lives, score, streak }));
-}
-function loadProgress() {
-  try { return JSON.parse(localStorage.getItem(saveKey())); } catch(e) { return null; }
-}
-function clearProgress() { localStorage.removeItem(saveKey()); }
+// ── Állapot ──
+let currentCat = null;
+let puzzles = [];
+let currentIdx = 0;
+let score = 0;
+let lives = MAX_LIVES;
+let hintsUsed = 0;
+let roundPoints = 0;
+let solved = false;
 
-let currentLevel = 0, lives = MAX_LIVES, score = 0, streak = 0, answered = false;
-
-function renderLives() {
-  const el = document.getElementById('lives-display');
-  el.innerHTML = '';
-  for (let i = 0; i < MAX_LIVES; i++) el.innerHTML += i < lives ? '❤️' : '🖤';
+// ── Kategória képernyő ──
+function buildCatScreen() {
+  const grid = document.getElementById('cat-grid');
+  const icons = { allatok:'🐾', etelek:'🍽️', varosok:'🏙️', filmek:'🎬', targyak:'🔧', termeszet:'🌿' };
+  grid.innerHTML = Object.entries(CATEGORIES).map(([key, label]) => {
+    const count = PUZZLES.filter(p => p.category === key).length;
+    return `<button class="cat-btn" onclick="startCategory('${key}')">
+      <div class="cat-icon">${icons[key]||'🎯'}</div>
+      <div class="cat-name">${label}</div>
+      <div class="cat-count">${count} rejtvény</div>
+    </button>`;
+  }).join('');
 }
-function renderScore() { document.getElementById('score-display').textContent = score; }
-function renderLevel() {
-  document.getElementById('level-num').textContent = currentLevel + 1;
-  document.getElementById('level-total').textContent = LEVELS.length;
+
+function startCategory(cat) {
+  currentCat = cat;
+  // Szűrés és keverés
+  puzzles = PUZZLES.filter(p => p.category === cat).sort(() => Math.random() - 0.5);
+  currentIdx = 0;
+  score = 0;
+  lives = MAX_LIVES;
+
+  document.getElementById('cat-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'block';
+  document.getElementById('round-total').textContent = puzzles.length;
+
+  loadPuzzle();
 }
 
-function loadLevel() {
-  answered = false;
-  const lvl = LEVELS[currentLevel];
-  document.getElementById('story-box').textContent = lvl.story;
-  document.getElementById('question-text').textContent = '❓ ' + lvl.question;
-  const grid = document.getElementById('doors-grid');
-  grid.innerHTML = '';
-  lvl.doors.forEach((door, idx) => {
-    const btn = document.createElement('button');
-    btn.className = 'door-btn';
-    btn.innerHTML = `
-      <div class="door-label">${door.label}</div>
-      <div class="door-icon">🚪</div>
-      <div class="door-answer" style="display:block;">${door.answer}</div>
-      <div class="door-hint">${door.hint}</div>
-    `;
-    btn.addEventListener('click', () => chooseDoor(idx, btn));
-    grid.appendChild(btn);
-  });
-  const fb = document.getElementById('feedback-bar');
-  fb.className = 'feedback-bar'; fb.textContent = '';
+function backToCategories() {
+  document.getElementById('result-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('cat-screen').style.display = 'block';
+}
+
+// ── Rejtvény betöltése ──
+function loadPuzzle() {
+  solved = false;
+  hintsUsed = 0;
+  roundPoints = POINTS_CORRECT_NOHINT;
+
+  const p = puzzles[currentIdx];
+
+  // Kép — homályos
+  const img = document.getElementById('puzzle-img');
+  img.src = p.image;
+  img.className = 'blurred';
+  document.getElementById('blur-label').style.display = 'block';
+
+  // Kategória badge
+  document.getElementById('cat-badge').textContent = CATEGORIES[p.category];
+
+  // Szóhossz kijelző
+  buildWordDisplay(p.word, []);
+
+  // Tipp gomb reset
+  document.getElementById('hint1-btn').disabled = false;
+  document.getElementById('hint2-btn').disabled = false;
+  document.getElementById('hint3-btn').disabled = false;
+
+  // Tipp szöveg reset
+  const ht = document.getElementById('hint-text');
+  ht.className = 'hint-text';
+  ht.textContent = '';
+
+  // Bevitel reset
+  const input = document.getElementById('guess-input');
+  input.value = '';
+  input.disabled = false;
+  input.className = '';
+  input.focus();
+
+  // Visszajelzés reset
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback';
+  fb.textContent = '';
+
+  // Következő gomb elrejtése
   document.getElementById('next-btn').style.display = 'none';
-  renderLevel();
+
+  // HUD
+  document.getElementById('round-num').textContent = currentIdx + 1;
+  renderLives();
+  renderScore();
 }
 
-function chooseDoor(idx, clickedBtn) {
-  if (answered) return;
-  answered = true;
-  const lvl = LEVELS[currentLevel];
-  const allBtns = document.querySelectorAll('.door-btn');
-  allBtns.forEach(b => b.disabled = true);
-  const isCorrect = idx === lvl.correct;
-  const fb = document.getElementById('feedback-bar');
-  const expl = lvl.explanation ? ' — ' + lvl.explanation : '';
+function buildWordDisplay(word, revealedIndices) {
+  const container = document.getElementById('word-display');
+  container.innerHTML = word.split('').map((ch, i) => {
+    if (ch === ' ') return '<div class="letter-box space"></div>';
+    const revealed = revealedIndices.includes(i);
+    return `<div class="letter-box ${revealed ? 'revealed' : ''}">${revealed ? ch : ''}</div>`;
+  }).join('');
+}
 
-  if (isCorrect) {
-    clickedBtn.classList.add('correct');
-    streak++;
-    const bonus = streak > 1 ? POINTS_BONUS_STREAK * (streak - 1) : 0;
-    const earned = POINTS_PER_CORRECT + bonus;
-    score += earned; renderScore();
-    fb.textContent = streak > 1
-      ? '✅ Helyes! +' + earned + ' pont (' + streak + '× bónusz!)' + expl
-      : '✅ Helyes! +' + earned + ' pont' + expl;
-    fb.className = 'feedback-bar show correct-fb';
-    clickedBtn.classList.add('pulse');
+// ── Tippek ──
+const revealedLetters = {};
+
+function useHint(n) {
+  if (solved) return;
+  const p = puzzles[currentIdx];
+  hintsUsed = Math.max(hintsUsed, n);
+
+  const ht = document.getElementById('hint-text');
+
+  if (n === 1) {
+    // Betűtipp: hint1 megmutatása
+    document.getElementById('hint1-btn').disabled = true;
+    roundPoints = Math.max(0, roundPoints - 50);
+    ht.textContent = '💡 Tipp: ' + p.hint1;
+    ht.className = 'hint-text show';
+  } else if (n === 2) {
+    // Leírás
+    document.getElementById('hint2-btn').disabled = true;
+    roundPoints = Math.max(0, roundPoints - 75);
+    ht.textContent = '📝 ' + p.hint2;
+    ht.className = 'hint-text show';
+  } else if (n === 3) {
+    // Kép fókusz: blur csökkentése
+    document.getElementById('hint3-btn').disabled = true;
+    roundPoints = Math.max(0, roundPoints - 100);
+    const img = document.getElementById('puzzle-img');
+    img.style.filter = 'blur(6px) brightness(0.85)';
+    ht.textContent = '🔍 A kép most élesebb — nézd meg jobban!';
+    ht.className = 'hint-text show';
+  }
+}
+
+// ── Tipp küldése ──
+function submitGuess() {
+  if (solved) return;
+  const p = puzzles[currentIdx];
+  const input = document.getElementById('guess-input');
+  const guess = input.value.trim().toUpperCase();
+  const correct = p.word.toUpperCase();
+
+  if (!guess) return;
+
+  const fb = document.getElementById('feedback');
+
+  if (guess === correct) {
+    // ✅ Helyes
+    solved = true;
+    score += roundPoints;
+    renderScore();
+
+    // Kép felfedése
+    const img = document.getElementById('puzzle-img');
+    img.style.filter = 'none';
+    img.className = '';
+    document.getElementById('blur-label').style.display = 'none';
+
+    // Szóhossz teli megmutatása
+    buildWordDisplay(p.word, [...Array(p.word.length).keys()]);
+
+    fb.textContent = '✅ Helyes! +' + roundPoints + ' pont';
+    fb.className = 'feedback show correct';
+
+    input.disabled = true;
+    input.className = 'correct-flash';
+
+    document.getElementById('hint1-btn').disabled = true;
+    document.getElementById('hint2-btn').disabled = true;
+    document.getElementById('hint3-btn').disabled = true;
+
+    setTimeout(() => {
+      if (currentIdx >= puzzles.length - 1) {
+        showResult(true);
+      } else {
+        document.getElementById('next-btn').style.display = 'inline-block';
+      }
+    }, 1000);
+
   } else {
-    clickedBtn.classList.add('wrong');
-    allBtns[lvl.correct].classList.add('reveal');
-    streak = 0; lives--; renderLives();
-    fb.textContent = '❌ Nem ez volt! Helyes: ' + lvl.doors[lvl.correct].answer + expl;
-    fb.className = 'feedback-bar show wrong-fb';
-    clickedBtn.classList.add('shake');
-    if (lives <= 0) { clearProgress(); setTimeout(() => showResult(false), 1400); return; }
-  }
+    // ❌ Helytelen
+    lives--;
+    renderLives();
+    input.className = 'wrong-shake';
+    setTimeout(() => { input.className = ''; }, 500);
+    input.value = '';
 
-  if (currentLevel >= LEVELS.length - 1 && isCorrect) {
-    clearProgress(); setTimeout(() => showResult(true), 1600); return;
+    if (lives <= 0) {
+      // Felfedjük a választ
+      solved = true;
+      const img = document.getElementById('puzzle-img');
+      img.style.filter = 'none'; img.className = '';
+      document.getElementById('blur-label').style.display = 'none';
+      buildWordDisplay(p.word, [...Array(p.word.length).keys()]);
+
+      fb.textContent = '💀 Elfogytak az életeid! A helyes válasz: ' + p.word;
+      fb.className = 'feedback show wrong';
+      input.disabled = true;
+
+      setTimeout(() => showResult(false), 1600);
+    } else {
+      fb.textContent = '❌ Nem ez! Még ' + lives + ' próbád van.';
+      fb.className = 'feedback show wrong';
+    }
   }
-  saveProgress();
-  document.getElementById('next-btn').style.display = 'inline-block';
 }
 
-function nextLevel() {
-  currentLevel++;
-  if (currentLevel >= LEVELS.length) { clearProgress(); showResult(true); return; }
-  saveProgress();
+function nextPuzzle() {
+  currentIdx++;
+  if (currentIdx >= puzzles.length) { showResult(true); return; }
   const gs = document.getElementById('game-screen');
   gs.classList.remove('fadeIn'); void gs.offsetWidth; gs.classList.add('fadeIn');
-  loadLevel();
+  loadPuzzle();
 }
 
+// ── Eredmény ──
 async function showResult(won) {
   try {
     const ref = db.collection('users').doc(username);
@@ -184,49 +344,40 @@ async function showResult(won) {
       const updates = {
         gamesPlayed: (u.gamesPlayed||0) + 1,
         totalPoints: (u.totalPoints||0) + score,
-        lastPlayed: Date.now()
+        lastPlayed: Date.now(),
       };
       if (score > (u.bestScore||0)) updates.bestScore = score;
-      if ((currentLevel+1) > (u.bestLevel||0)) updates.bestLevel = currentLevel + 1;
       await ref.update(updates);
     }
-  } catch(e) { console.error('Mentési hiba:', e); }
+  } catch(e) { console.error(e); }
 
   document.getElementById('game-screen').style.display = 'none';
-  document.getElementById('result-screen').style.display = 'block';
+  const rs = document.getElementById('result-screen');
+  rs.style.display = 'block';
+
   document.getElementById('result-icon').textContent = won ? '🎉' : '💀';
-  document.getElementById('result-title').textContent = won ? 'Gratulálok, kijutottál!' : 'Vége a játéknak!';
+  document.getElementById('result-title').textContent = won ? 'Gratulálok!' : 'Vége!';
   document.getElementById('result-score').textContent = score + ' pont';
   document.getElementById('result-sub').textContent = won
-    ? 'Teljesítetted mind a ' + LEVELS.length + ' szintet!'
-    : 'Elérted a ' + (currentLevel+1) + '. szintet ' + LEVELS.length + '-ből.';
+    ? 'Teljesítetted az összes rejtvényt a kategóriában!'
+    : 'Elfogytak az életeid. Próbáld újra!';
 }
 
-function continueGame() {
-  document.getElementById('continue-screen').style.display = 'none';
-  renderLives(); renderScore(); loadLevel();
+function renderLives() {
+  const el = document.getElementById('lives-display');
+  el.innerHTML = '';
+  for (let i = 0; i < MAX_LIVES; i++) el.innerHTML += i < lives ? '❤️' : '🖤';
 }
+function renderScore() { document.getElementById('score-display').textContent = score; }
 
-function freshStart() {
-  clearProgress();
-  currentLevel = 0; lives = MAX_LIVES; score = 0; streak = 0; answered = false;
-  document.getElementById('continue-screen').style.display = 'none';
-  document.getElementById('result-screen').style.display = 'none';
-  document.getElementById('game-screen').style.display = 'block';
-  renderLives(); renderScore(); loadLevel();
-}
+// Enter = küldés
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('game-screen').style.display !== 'none') {
+    submitGuess();
+  }
+});
 
-// Indítás
-const saved = loadProgress();
-if (saved && saved.currentLevel > 0) {
-  currentLevel = saved.currentLevel; lives = saved.lives; score = saved.score; streak = saved.streak||0;
-  document.getElementById('continue-screen').style.display = 'block';
-  document.getElementById('continue-info').textContent =
-    (currentLevel+1) + '. szint • ' + lives + ' ❤️ maradt • ' + score + ' pont';
-  renderLives(); renderScore(); renderLevel();
-} else {
-  renderLives(); renderScore(); loadLevel();
-}
+buildCatScreen();
 </script>
 </body>
 </html>
