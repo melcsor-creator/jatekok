@@ -64,8 +64,7 @@
   <div id="content" style="display:none;">
     <div class="stats-bar" id="stats-bar"></div>
     <div class="filters">
-      <button class="filter-btn active" onclick="setSort('score',this)">⭐ Legjobb pontszám</button>
-      <button class="filter-btn" onclick="setSort('level',this)">🚪 Legjobb szint</button>
+      <button class="filter-btn active" onclick="setSort('xp',this)">⚡ Rang / XP</button>
       <button class="filter-btn" onclick="setSort('coins',this)">⭐ Legtöbb csillag</button>
       <button class="filter-btn" onclick="setSort('games',this)">🎮 Legtöbb meccs</button>
       <button class="filter-btn" onclick="setSort('newest',this)">🆕 Legújabb</button>
@@ -76,8 +75,8 @@
           <tr>
             <th style="width:52px;">#</th>
             <th>Játékos</th>
-            <th class="right">Legjobb pont</th>
-            <th class="right">Szint</th>
+            <th class="right">Rang</th>
+            <th class="right">XP</th>
             <th class="right">⭐ Csillag</th>
             <th class="right">Meccsek</th>
           </tr>
@@ -93,10 +92,10 @@
   </div>
 </main>
 
-<!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="firebase.js"></script>
+<script src="ranks.js"></script>
 <script src="settings.js"></script>
 <script>
 const SESSION_KEY = 'doorpuzzle_session';
@@ -113,7 +112,7 @@ if (myName) {
 }
 
 let allUsers = [];
-let currentSort = 'score';
+let currentSort = 'xp';
 
 function formatDate(ts) {
   if (!ts) return '—';
@@ -130,8 +129,7 @@ function rankBadge(i) {
 function getSorted() {
   const copy = [...allUsers];
   switch(currentSort) {
-    case 'score':  return copy.sort((a,b)=>(b.bestScore||0)-(a.bestScore||0));
-    case 'level':  return copy.sort((a,b)=>(b.bestLevel||0)-(a.bestLevel||0));
+    case 'xp':     return copy.sort((a,b)=>(b.xp||0)-(a.xp||0));
     case 'coins':  return copy.sort((a,b)=>(b.coins||0)-(a.coins||0));
     case 'games':  return copy.sort((a,b)=>(b.gamesPlayed||0)-(a.gamesPlayed||0));
     case 'newest': return copy.sort((a,b)=>(b.created||0)-(a.created||0));
@@ -149,12 +147,12 @@ function setSort(type, btn) {
 function renderStats() {
   const total = allUsers.length;
   const totalGames = allUsers.reduce((s,u)=>s+(u.gamesPlayed||0),0);
-  const best = allUsers.reduce((m,u)=>Math.max(m,u.bestScore||0),0);
+  const totalXP = allUsers.reduce((s,u)=>s+(u.xp||0),0);
   const totalCoins = allUsers.reduce((s,u)=>s+(u.coins||0),0);
   document.getElementById('stats-bar').innerHTML =
     '<div class="stat"><div class="val">'+total+'</div><div class="lbl">Regisztrált játékos</div></div>' +
     '<div class="stat"><div class="val">'+totalGames+'</div><div class="lbl">Összes meccs</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--gold);">'+best+'</div><div class="lbl">Legjobb pontszám</div></div>' +
+    '<div class="stat"><div class="val" style="color:var(--accent);">'+totalXP+' XP</div><div class="lbl">Összes XP</div></div>' +
     '<div class="stat"><div class="val" style="color:var(--gold);">'+totalCoins+' ⭐</div><div class="lbl">Összes csillag</div></div>';
 }
 
@@ -169,32 +167,44 @@ function renderTable() {
   document.getElementById('lb-empty').style.display = 'none';
   tbody.innerHTML = sorted.map((u,i) => {
     const isMe = u.name === myName;
+    const rank = getRank(u.xp || 0);
+    const prog = getXpProgress(u.xp || 0);
+    const xpBar = prog.next
+      ? '<div style="background:var(--border);border-radius:999px;height:4px;width:60px;display:inline-block;vertical-align:middle;margin-left:6px;overflow:hidden;">' +
+        '<div style="height:100%;width:'+prog.pct+'%;background:'+rank.color+';border-radius:999px;"></div></div>'
+      : '';
     return '<tr style="'+(isMe?'background:rgba(124,92,252,0.08);':'')+'">' +
       '<td>'+rankBadge(i)+'</td>' +
       '<td><div class="player-cell">' +
         '<div class="mini-avatar">'+u.name.charAt(0).toUpperCase()+'</div>' +
         '<div>' +
           '<div><a href="profile.html?player='+encodeURIComponent(u.name)+'" class="player-name-link">'+u.name+'</a>'+(isMe?'<span class="you-badge">Te</span>':'')+'</div>' +
-          '<div class="player-sub">'+formatDate(u.created)+'</div>' +
+          '<div class="player-sub">Csatlakozott: '+formatDate(u.created)+'</div>' +
         '</div>' +
       '</div></td>' +
-      '<td class="right"><span class="pill pill-gold">'+(u.bestScore||0)+' pont</span></td>' +
-      '<td class="right"><span class="pill '+((u.bestLevel||0)>=10?'pill-green':'pill-muted')+'">'+(u.bestLevel||0)+' / 10</span></td>' +
+      '<td class="right"><span style="color:'+rank.color+';font-weight:700;">'+rank.icon+' '+rank.name+'</span></td>' +
+      '<td class="right" style="font-weight:700;color:var(--accent);">'+(u.xp||0)+' XP'+xpBar+'</td>' +
       '<td class="right" style="color:var(--gold);font-weight:700;">'+(u.coins||0)+' ⭐</td>' +
       '<td class="right" style="color:var(--muted);">'+(u.gamesPlayed||0)+'</td>' +
     '</tr>';
   }).join('');
 }
 
-async function init() {
-  try {
-    const snap = await db.collection('users').get();
+// ── Valós idejű frissítés onSnapshot-tal ──
+function init() {
+  db.collection('users').onSnapshot(snap => {
+    allUsers = [];
     snap.forEach(d => allUsers.push(d.data()));
-  } catch(e) { console.error(e); }
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('content').style.display = 'block';
-  renderStats();
-  renderTable();
+    // Mindig XP szerint rendez frissítéskor
+    allUsers.sort((a,b) => (b.xp||0) - (a.xp||0));
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    renderStats();
+    renderTable();
+  }, err => {
+    console.error(err);
+    document.getElementById('loading').innerHTML = '❌ Hiba a betöltésnél';
+  });
 }
 
 init();
