@@ -216,45 +216,52 @@ async function doRegister() {
 
 function loadOnlinePlayers() {
   db.collection('presence').onSnapshot(snap => {
-    const el = document.getElementById('online-players');
-    const countEl = document.getElementById('online-count');
-    const now = Date.now();
-    const TWO_MINUTES = 2 * 60 * 1000;
-
-    // Csak azok számítanak akiknek a heartbeat 2 percnél frissebb
-    const active = [];
-    snap.forEach(d => {
-      const u = d.data();
-      if ((now - (u.since || 0)) < TWO_MINUTES) {
-        active.push(u);
-      } else {
-        // Régi rekord — töröljük
-        db.collection('presence').doc(d.id).delete().catch(()=>{});
-      }
-    });
-
-    if (countEl) {
-      countEl.textContent = active.length > 0 ? '🟢 ' + active.length + ' online' : '';
-    }
-
-    if (!el) return;
-    if (active.length === 0) {
-      el.innerHTML = '<li style="color:var(--muted);padding:12px 16px;">Jelenleg senki sem játszik.</li>';
-      return;
-    }
-    const mySession = getSession();
-    el.innerHTML = active.map(u => {
-      const isMe = u.name === mySession;
-      return '<li>' +
-        '<span style="color:var(--green);font-size:1rem;min-width:14px;margin-right:4px;">●</span>' +
-        '<span class="lb-name">' +
-          '<a href="profile.html?player=' + encodeURIComponent(u.name) + '">' + u.name + '</a>' +
-          (isMe ? '<span style="background:var(--accent);color:#fff;font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:999px;margin-left:6px;">Te</span>' : '') +
-        '</span>' +
-        '<span style="color:var(--muted);font-size:.82rem;">🎮 Játszik</span>' +
-      '</li>';
-    }).join('');
+    renderOnline(snap);
   });
+
+  // Percenként újrarendereli — kiszűri a lejárt rekordokat frissítés nélkül
+  setInterval(() => {
+    db.collection('presence').get().then(snap => renderOnline(snap));
+  }, 60000);
+}
+
+function renderOnline(snap) {
+  const el = document.getElementById('online-players');
+  const countEl = document.getElementById('online-count');
+  const now = Date.now();
+  const TWO_MIN = 2 * 60 * 1000;
+
+  const active = [];
+  snap.forEach(d => {
+    const u = d.data();
+    if ((now - (u.since || 0)) < TWO_MIN) {
+      active.push(u);
+    } else {
+      db.collection('presence').doc(d.id).delete().catch(()=>{});
+    }
+  });
+
+  if (countEl) {
+    countEl.textContent = active.length > 0 ? '🟢 ' + active.length + ' online' : '';
+  }
+
+  if (!el) return;
+  if (active.length === 0) {
+    el.innerHTML = '<li style="color:var(--muted);padding:12px 16px;">Jelenleg senki sem játszik.</li>';
+    return;
+  }
+  const mySession = getSession();
+  el.innerHTML = active.map(u => {
+    const isMe = u.name === mySession;
+    return '<li>' +
+      '<span style="color:var(--green);font-size:1rem;min-width:14px;margin-right:4px;">●</span>' +
+      '<span class="lb-name">' +
+        '<a href="profile.html?player=' + encodeURIComponent(u.name) + '">' + u.name + '</a>' +
+        (isMe ? '<span style="background:var(--accent);color:#fff;font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:999px;margin-left:6px;">Te</span>' : '') +
+      '</span>' +
+      '<span style="color:var(--muted);font-size:.82rem;">🎮 Játszik</span>' +
+    '</li>';
+  }).join('');
 }
 
 function doLogout() { clearSession(); location.reload(); }
