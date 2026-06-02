@@ -1,14 +1,14 @@
 // XP és rang rendszer
 
 const RANKS = [
-  { name: "Újonc",      min: 0,    icon: "🪨", color: "#888" },
-  { name: "Kezdő",      min: 30,   icon: "🥉", color: "#cd7f32" },
-  { name: "Haladó",     min: 100,  icon: "🥈", color: "#c0c0c0" },
-  { name: "Tapasztalt", min: 200,  icon: "🥇", color: "#f5c842" },
-  { name: "Mester",     min: 350,  icon: "💎", color: "#7c5cfc" },
-  { name: "Bajnok",     min: 550,  icon: "👑", color: "#fc5c5c" },
-  { name: "Legenda",    min: 800,  icon: "🌟", color: "#c45cfc" },
-  { name: "Istenség",   min: 1200, icon: "⚡", color: "#fff" },
+  { name: "Újonc",      min: 0,    icon: "★",  color: "#888" },
+  { name: "Kezdő",      min: 30,   icon: "✦",  color: "#cd7f32" },
+  { name: "Haladó",     min: 100,  icon: "◈",  color: "#c0c0c0" },
+  { name: "Tapasztalt", min: 200,  icon: "✸",  color: "#f5c842" },
+  { name: "Mester",     min: 350,  icon: "❋",  color: "#7c5cfc" },
+  { name: "Bajnok",     min: 550,  icon: "✺",  color: "#fc5c5c" },
+  { name: "Legenda",    min: 800,  icon: "✻",  color: "#c45cfc" },
+  { name: "Istenség",   min: 1200, icon: "⚝",  color: "#fff" },
 ];
 
 // XP értékek
