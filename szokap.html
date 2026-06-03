@@ -108,7 +108,7 @@
 <body>
 
 <header class="site-header">
-  <div class="logo">🪢 AkasztófaOnline</div>
+  <div class="logo"><span class="logo-emoji">🪢</span> AkasztófaOnline</div>
   <nav class="nav-links">
     <span id="nav-user" style="color:var(--muted);font-size:.9rem;"></span>
     <a href="index.html">Főoldal</a>
@@ -354,7 +354,18 @@ async function loadCoins() {
   } catch(e) {}
 }
 
+// Valós idejű csillag figyelés
+function watchCoins() {
+  db.collection('users').doc(username).onSnapshot(snap => {
+    if (snap.exists) {
+      coins = snap.data().coins || 0;
+      renderHUD();
+    }
+  });
+}
+
 loadCoins();
+watchCoins();
 loadPuzzle();
 </script>
 </body>

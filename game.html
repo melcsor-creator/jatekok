@@ -11,7 +11,7 @@
 <body>
 
 <header class="site-header">
-  <div class="logo">🪢 AkasztófaOnline</div>
+  <div class="logo"><span class="logo-emoji">🪢</span> AkasztófaOnline</div>
   <nav class="nav-links">
     <span id="nav-user" style="color:var(--muted);font-size:.9rem;"></span>
     <a href="profile.html" id="nav-profile" style="display:none;">Profilom</a>
@@ -476,6 +476,20 @@ async function loadUserXP() {
   } catch(e) {}
 }
 
+// Valós idejű csillag figyelés — ha kerékből kap csillagot, azonnal frissül
+function watchCoins() {
+  db.collection('users').doc(username).onSnapshot(snap => {
+    if (snap.exists) {
+      const newCoins = snap.data().coins || 0;
+      if (newCoins !== userCoins) {
+        userCoins = newCoins;
+        updateCoinsDisplay();
+      }
+      renderRank(snap.data().xp || 0);
+    }
+  });
+}
+
 function updateCoinsDisplay() {
   const btn = document.getElementById('buy-hint-btn');
   const disp = document.getElementById('coins-display');
@@ -529,6 +543,7 @@ document.addEventListener('keydown', e => {
 });
 
 loadUserXP();
+watchCoins();
 </script>
 </body>
 </html>
