@@ -435,6 +435,7 @@ async function showResult(won) {
         gamesPlayed: (u.gamesPlayed||0) + 1,
         lastPlayed: Date.now(),
         xp: newXP,
+        coins: firebase.firestore.FieldValue.increment(won ? 5 : 0),
       };
       if (bonusCoins > 0) {
         updates.coins = firebase.firestore.FieldValue.increment(bonusCoins);

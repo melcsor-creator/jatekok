@@ -284,7 +284,10 @@ function chooseAnswer(answer) {
     db.collection('users').doc(username).get().then(snap => {
       if (snap.exists) {
         const oldXP = snap.data().xp || 0;
-        db.collection('users').doc(username).update({ xp: oldXP + xpEarned });
+        db.collection('users').doc(username).update({
+          xp: oldXP + xpEarned,
+          coins: firebase.firestore.FieldValue.increment(5)
+        });
       }
     }).catch(()=>{});
 
