@@ -88,7 +88,6 @@
           <tr>
             <th style="width:52px;">#</th>
             <th>Játékos</th>
-            <th class="right">Rang</th>
             <th class="right">XP</th>
             <th class="right">⭐ Csillag</th>
             <th class="right">Meccsek</th>
@@ -183,24 +182,40 @@ function renderTable() {
     return;
   }
   document.getElementById('lb-empty').style.display = 'none';
+
+  function stringToColor(str) {
+    const colors = ['#7c5cfc','#c45cfc','#fc5c5c','#5cfc8e','#f5c842','#5c9efc','#fc9e5c','#5cfcdc'];
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+  }
+  function getRankIndex(xp) {
+    const t = [0,30,100,200,350,550,800,1200]; let idx=0;
+    for (let i=0;i<t.length;i++) { if(xp>=t[i]) idx=i; } return idx;
+  }
+
   tbody.innerHTML = sorted.map((u,i) => {
     const isMe = u.name === myName;
     const rank = getRank(u.xp || 0);
+    const rankIdx = getRankIndex(u.xp || 0);
     const prog = getXpProgress(u.xp || 0);
+    const avatarColor = stringToColor(u.name);
     const xpBar = prog.next
-      ? '<div style="background:var(--border);border-radius:999px;height:4px;width:60px;display:inline-block;vertical-align:middle;margin-left:6px;overflow:hidden;">' +
-        '<div style="height:100%;width:'+prog.pct+'%;background:'+rank.color+';border-radius:999px;"></div></div>'
+      ? '<div style="background:var(--border);border-radius:999px;height:4px;width:50px;display:inline-block;vertical-align:middle;margin-left:5px;overflow:hidden;"><div style="height:100%;width:'+prog.pct+'%;background:'+rank.color+';border-radius:999px;"></div></div>'
       : '';
-    return '<tr style="'+(isMe?'background:rgba(124,92,252,0.08);':'')+'">' +
+    return '<tr style="'+(isMe?'background:rgba(124,92,252,0.07);':'')+'">' +
       '<td>'+rankBadge(i)+'</td>' +
       '<td><div class="player-cell">' +
-        '<div class="mini-avatar">'+u.name.charAt(0).toUpperCase()+'</div>' +
+        '<div class="mini-avatar" style="background:'+avatarColor+';">'+u.name.charAt(0).toUpperCase()+'</div>' +
         '<div>' +
-          '<div><a href="profile.html?player='+encodeURIComponent(u.name)+'" class="player-name-link">'+u.name+'</a>'+(isMe?'<span class="you-badge">Te</span>':'')+'</div>' +
-          '<div class="player-sub">Csatlakozott: '+formatDate(u.created)+'</div>' +
+          '<div style="display:flex;align-items:center;gap:6px;">' +
+            '<a href="profile.html?player='+encodeURIComponent(u.name)+'" class="player-name-link">'+u.name+'</a>' +
+            '<span class="rank-pill rank-pill-'+rankIdx+'">'+rank.name+'</span>' +
+            (isMe?'<span class="you-badge">Te</span>':'') +
+          '</div>' +
+          '<div class="player-sub">'+formatDate(u.created)+'</div>' +
         '</div>' +
       '</div></td>' +
-      '<td class="right"><span style="color:'+rank.color+';font-weight:700;">'+rank.icon+' '+rank.name+'</span></td>' +
       '<td class="right" style="font-weight:700;color:var(--accent);">'+(u.xp||0)+' XP'+xpBar+'</td>' +
       '<td class="right" style="color:var(--gold);font-weight:700;">'+(u.coins||0)+' ⭐</td>' +
       '<td class="right" style="color:var(--muted);">'+(u.gamesPlayed||0)+'</td>' +

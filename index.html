@@ -374,6 +374,23 @@ async function doRegister() {
 
 function doLogout() { clearSession(); location.reload(); }
 
+// ── Segédfüggvények az avatarhoz és rang indexhez ──
+function stringToColor(str) {
+  const colors = ['#7c5cfc','#c45cfc','#fc5c5c','#5cfc8e','#f5c842','#5c9efc','#fc9e5c','#5cfcdc'];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function getRankIndex(xp) {
+  const thresholds = [0, 30, 100, 200, 350, 550, 800, 1200];
+  let idx = 0;
+  for (let i = 0; i < thresholds.length; i++) {
+    if (xp >= thresholds[i]) idx = i;
+  }
+  return idx;
+}
+
 // ── Online játékosok ──
 function loadOnlinePlayers() {
   db.collection('presence').onSnapshot(snap => renderOnline(snap));
@@ -405,11 +422,14 @@ function renderOnline(snap) {
   const mySession = getSession();
   el.innerHTML = active.map(u => {
     const isMe = u.name === mySession;
-    return '<li style="padding:8px 0;">' +
-      '<span style="color:var(--green);margin-right:6px;font-size:.9rem;">●</span>' +
-      '<span class="lb-name"><a href="profile.html?player=' + encodeURIComponent(u.name) + '">' + u.name + '</a>' +
-      (isMe ? '<span style="background:var(--accent);color:#fff;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:5px;">Te</span>' : '') +
+    const avatarColor = stringToColor(u.name);
+    return '<li class="' + (isMe ? 'is-me' : '') + '">' +
+      '<div class="lb-avatar" style="background:' + avatarColor + ';">' + u.name.charAt(0).toUpperCase() + '</div>' +
+      '<span class="lb-name">' +
+        '<a href="profile.html?player=' + encodeURIComponent(u.name) + '">' + u.name + '</a>' +
+        (isMe ? '<span style="background:var(--accent);color:#fff;font-size:.65rem;font-weight:800;padding:1px 7px;border-radius:999px;">Te</span>' : '') +
       '</span>' +
+      '<span style="color:var(--green);font-size:.78rem;font-weight:600;">● Játszik</span>' +
     '</li>';
   }).join('');
 }
@@ -424,12 +444,22 @@ async function loadLeaderboard() {
     snap.forEach(d => { const u = d.data(); u.xp = Number(u.xp)||0; users.push(u); });
     users.sort((a,b) => b.xp - a.xp || (b.coins||0) - (a.coins||0));
     const rankCls = ['gold','silver','bronze'];
+    const myName = getSession();
+    const RANK_COLORS = ['#8888aa','#cd7f32','#a0a0b0','#d4a500','#7c5cfc','#fc5c5c','#c45cfc','#ffffff'];
     el.innerHTML = users.slice(0,8).map((u,i) => {
       const rank = getRank(u.xp);
-      return '<li style="padding:8px 0;">' +
+      const rankIdx = getRankIndex(u.xp);
+      const isMe = u.name === myName;
+      const avatarColor = stringToColor(u.name);
+      return '<li class="' + (isMe ? 'is-me' : '') + '">' +
         '<span class="lb-rank ' + (rankCls[i]||'') + '">' + (i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.') + '</span>' +
-        '<span class="lb-name"><a href="profile.html?player=' + encodeURIComponent(u.name) + '">' + u.name + '</a></span>' +
-        '<span style="color:' + rank.color + ';font-weight:700;font-size:.82rem;margin-left:auto;">' + rank.icon + ' ' + u.xp + ' XP</span>' +
+        '<div class="lb-avatar" style="background:' + avatarColor + ';">' + u.name.charAt(0).toUpperCase() + '</div>' +
+        '<span class="lb-name">' +
+          '<a href="profile.html?player=' + encodeURIComponent(u.name) + '">' + u.name + '</a>' +
+          '<span class="rank-pill rank-pill-' + rankIdx + '">' + rank.name + '</span>' +
+          (isMe ? '<span style="background:var(--accent);color:#fff;font-size:.65rem;font-weight:800;padding:1px 7px;border-radius:999px;">Te</span>' : '') +
+        '</span>' +
+        '<span style="color:var(--gold);font-weight:700;font-size:.85rem;margin-left:auto;">' + (u.coins||0) + ' ⭐</span>' +
       '</li>';
     }).join('');
   } catch(e) {
