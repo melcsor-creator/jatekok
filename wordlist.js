@@ -101,5 +101,7 @@ const VALID_WORDS = new Set([
 ]);
 
 function isValidWord(word) {
-  return VALID_WORDS.has(word.toUpperCase().trim());
+  // Csak alapvető ellenőrzés — legalább 2 betű, csak betűk (magyar ékezetekkel)
+  if (!word || word.length < 2) return false;
+  return /^[A-ZÁÉÍÓÖŐÚÜŰ]+$/i.test(word);
 }

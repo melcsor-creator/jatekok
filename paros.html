@@ -179,9 +179,13 @@ function loadOnlinePlayers() {
     }
     list.innerHTML = active.map(u => {
       const col = stringToColor(u.name);
+      const where = u.where === 'főmenü' ? '🏠 Főmenüben' : '🎮 Játszik';
       return '<div class="player-row online">' +
         '<div class="pr-avatar" style="background:'+col+';">'+u.name.charAt(0).toUpperCase()+'</div>' +
-        '<span class="pr-name">'+u.name+'</span>' +
+        '<div style="flex:1;">' +
+          '<span class="pr-name">'+u.name+'</span>' +
+          '<div style="font-size:.75rem;color:var(--muted);">'+where+'</div>' +
+        '</div>' +
         '<span style="color:var(--green);font-size:.78rem;font-weight:600;">● Online</span>' +
         '<button class="invite-btn" onclick="sendInvite(\''+u.name+'\')">Meghívás</button>' +
       '</div>';

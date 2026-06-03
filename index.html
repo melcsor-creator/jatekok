@@ -473,9 +473,21 @@ async function loadLeaderboard() {
   }
 }
 
+// ── Presence — főmenüben is online ──
+function setPresence(name) {
+  db.collection('presence').doc(name).set({
+    name: name,
+    online: true,
+    where: 'főmenü',
+    since: Date.now()
+  }).catch(()=>{});
+}
+function clearPresence(name) {
+  db.collection('presence').doc(name).delete().catch(()=>{});
+}
+
 // ── Indítás ──
-async function init() {
-  const name = getSession();
+async function init() {  const name = getSession();
 
   // Referral értesítő (nem bejelentkezett)
   if (refParam && !name) {
@@ -504,6 +516,13 @@ async function init() {
         document.getElementById('nav-user').textContent = u.name;
         document.getElementById('nav-logout').style.display = 'inline';
         document.getElementById('my-profile-link').href = 'profile.html?player=' + encodeURIComponent(u.name);
+        // Jelzés hogy online van (főmenüben)
+        setPresence(u.name);
+        // Heartbeat 20mp-enként
+        setInterval(() => setPresence(u.name), 20000);
+        // Oldal elhagyásakor offline
+        window.addEventListener('beforeunload', () => clearPresence(u.name));
+        window.addEventListener('pagehide', () => clearPresence(u.name));
         loadOnlinePlayers();
         await loadLeaderboard();
         return;

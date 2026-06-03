@@ -308,6 +308,12 @@ function chooseAnswer(answer) {
     fb.className = 'feedback show wrong';
     answered = false;
 
+    // Gombok újra engedélyezése — csak a hibásat jelöljük meg
+    btns.forEach(b => {
+      b.disabled = false;
+      if (b.textContent === answer) b.classList.add('wrong');
+    });
+
     if (lives <= 0) {
       setTimeout(() => {
         document.getElementById('result-overlay').style.display = 'flex';
