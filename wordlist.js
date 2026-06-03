@@ -100,8 +100,32 @@ const VALID_WORDS = new Set([
   "ZSIVÁNY","ZSOKÉ","ZSÚFOLT","ZSÁLYA","ZSÁKMÁNY","ZSEBKENDŐ",
 ]);
 
-function isValidWord(word) {
-  // Csak alapvető ellenőrzés — legalább 2 betű, csak betűk (magyar ékezetekkel)
-  if (!word || word.length < 2) return false;
-  return /^[A-ZÁÉÍÓÖŐÚÜŰ]+$/i.test(word);
+// Szóellenőrzés — Wiktionary API + alapszűrő
+const wordCache = {};
+
+async function isValidWord(word) {
+  const w = word.toUpperCase().trim();
+  if (!w || w.length < 2) return false;
+  // Csak betűk (magyar ékezetekkel)
+  if (!/^[A-ZÁÉÍÓÖŐÚÜŰ]+$/i.test(w)) return false;
+  // Túl rövid random stringek kizárása — legalább 3 karakter
+  if (w.length < 3) return true; // 2 betűs szavak (NŐ, FŰ, stb.) elfogadva
+  // Cache ellenőrzés
+  if (wordCache[w] !== undefined) return wordCache[w];
+
+  try {
+    const resp = await fetch(
+      'https://hu.wiktionary.org/w/api.php?action=query&titles=' +
+      encodeURIComponent(w.charAt(0) + w.slice(1).toLowerCase()) +
+      '&format=json&origin=*'
+    );
+    const data = await resp.json();
+    const pages = data.query.pages;
+    const exists = !pages['-1'];
+    wordCache[w] = exists;
+    return exists;
+  } catch(e) {
+    // Ha az API nem elérhető, fogadjuk el
+    return true;
+  }
 }

@@ -308,13 +308,22 @@ function chooseAnswer(answer) {
     fb.className = 'feedback show wrong';
     answered = false;
 
-    // Gombok újra engedélyezése — csak a hibásat jelöljük meg
+    // Csak a rosszat jelöljük — a helyeset NEM mutatjuk
     btns.forEach(b => {
       b.disabled = false;
+      b.classList.remove('correct', 'wrong');
+    });
+    // A rossz választ pirosan jelöljük
+    btns.forEach(b => {
       if (b.textContent === answer) b.classList.add('wrong');
     });
 
     if (lives <= 0) {
+      // Élet elfogy — MOST mutatjuk meg a helyeset
+      btns.forEach(b => {
+        b.disabled = true;
+        if (b.textContent === correct) b.classList.add('correct');
+      });
       setTimeout(() => {
         document.getElementById('result-overlay').style.display = 'flex';
         document.getElementById('res-icon').textContent = '💀';
