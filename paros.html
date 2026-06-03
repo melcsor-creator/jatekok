@@ -377,15 +377,33 @@ function joinRoom(roomId, oppName) {
   document.getElementById('my-words').innerHTML = '';
   document.getElementById('opp-words').innerHTML = '';
 
+let lastSeenRound = -1; // melyik kört láttuk utoljára
+
   // Szoba figyelése
   roomUnsub = db.collection('rooms').doc(roomId).onSnapshot(snap => {
     const room = snap.data();
     if (!room) return;
 
-    // Betű megjelenítése
-    document.getElementById('current-letter').textContent = room.letter;
     const roundNum = (room.currentRound || 0) + 1;
     const totalRounds = room.totalRounds || 1;
+
+    // Körváltás észlelése
+    if (lastSeenRound >= 0 && room.currentRound > lastSeenRound) {
+      // Új kör! Jelzés + reset
+      showRoundTransition(roundNum, totalRounds, room.letter, () => {
+        // Szavak törlése
+        document.getElementById('my-words').innerHTML = '';
+        document.getElementById('opp-words').innerHTML = '';
+        myWords = [];
+        // Timer újraindítás
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        startTimer(room.endTime);
+      });
+    }
+    lastSeenRound = room.currentRound || 0;
+
+    // Betű megjelenítése
+    document.getElementById('current-letter').textContent = room.letter;
     document.getElementById('round-info').textContent = roundNum + '/' + totalRounds + '. kör  •  ' + room.roundTime + ' mp';
 
     // Kihívás badge megjelenítése
@@ -618,6 +636,40 @@ async function showResult(room) {
       await ref.update({ versusStats, lastPlayed: Date.now() });
     }
   } catch(e) { console.error(e); }
+}
+
+// ── Körváltás jelzés ──
+function showRoundTransition(roundNum, totalRounds, letter, callback) {
+  const existing = document.getElementById('round-transition');
+  if (existing) existing.remove();
+
+  // Timer leállítás körváltásnál
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'round-transition';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(13,13,26,0.95);display:flex;align-items:center;justify-content:center;z-index:500;animation:fadeIn .3s ease;';
+  overlay.innerHTML =
+    '<div style="text-align:center;padding:32px;">' +
+      '<div style="font-size:.88rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em;">' + roundNum + '. kör / ' + totalRounds + '</div>' +
+      '<div style="font-size:1.2rem;font-weight:700;margin-bottom:16px;color:var(--text);">Következő betű:</div>' +
+      '<div style="font-size:7rem;font-weight:900;color:var(--accent);line-height:1;">' + letter + '</div>' +
+      '<div id="round-countdown" style="font-size:2.5rem;font-weight:900;color:var(--gold);margin-top:20px;">3</div>' +
+      '<div style="font-size:.85rem;color:var(--muted);margin-top:8px;">Készülj fel!</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  let count = 3;
+  const cdEl = overlay.querySelector('#round-countdown');
+  const interval = setInterval(() => {
+    count--;
+    if (cdEl) cdEl.textContent = count;
+    if (count <= 0) {
+      clearInterval(interval);
+      overlay.remove();
+      if (callback) callback();
+    }
+  }, 1000);
 }
 
 function backToLobby() {
