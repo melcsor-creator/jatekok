@@ -281,33 +281,41 @@ async function acceptInvite() {
   const invSnap = await db.collection('invites').doc(currentInviteId).get();
   const inv = invSnap.data();
 
-  // Szoba létrehozása
-  const times = [20, 30, 45, 60];
-  const roundTime = times[Math.floor(Math.random() * times.length)];
+  // Szoba létrehozása — 5 kör
+  const TOTAL_ROUNDS = 5;
+  const times = [20, 30, 45];
   const letters = 'ABCDEFGHIJKLMNOPRSTUVZ';
-  const letter = letters[Math.floor(Math.random() * letters.length)];
-
-  // Random kihívás
   const CHALLENGES = [
-    null, null, null, // 3/8 esély hogy nincs kihívás
+    null, null, null,
     { type: 'minLen', value: 5, label: 'Minimum 5 betűs szavak!' },
     { type: 'minLen', value: 6, label: 'Minimum 6 betűs szavak!' },
     { type: 'maxLen', value: 4, label: 'Maximum 4 betűs szavak!' },
-    { type: 'contains', value: 'A', label: 'A szóban legyen "A" betű!' },
-    { type: 'doublePoints', value: true, label: '2x pont — de csak 5+ betűs szavak!' },
+    { type: 'contains', value: 'A', label: 'A szóban legyen A betű!' },
   ];
-  const challenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+
+  // 5 kör adatait előre generáljuk
+  const rounds = Array.from({ length: TOTAL_ROUNDS }, () => ({
+    letter: letters[Math.floor(Math.random() * letters.length)],
+    roundTime: times[Math.floor(Math.random() * times.length)],
+    challenge: CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)] || null,
+  }));
+
+  const firstRound = rounds[0];
 
   const roomRef = await db.collection('rooms').add({
     players: [inv.from, username],
-    letter: letter,
-    roundTime: roundTime,
-    challenge: challenge || null,
+    totalRounds: TOTAL_ROUNDS,
+    currentRound: 0,
+    rounds: rounds,
+    letter: firstRound.letter,
+    roundTime: firstRound.roundTime,
+    challenge: firstRound.challenge,
     startTime: Date.now() + 3000,
-    endTime: Date.now() + 3000 + roundTime * 1000,
+    endTime: Date.now() + 3000 + firstRound.roundTime * 1000,
     status: 'playing',
     words: {},
-    scores: { [inv.from]: 0, [username]: 0 }
+    scores: { [inv.from]: 0, [username]: 0 },
+    roundScores: {}
   });
 
   await db.collection('invites').doc(currentInviteId).update({
@@ -361,7 +369,9 @@ function joinRoom(roomId, oppName) {
 
     // Betű megjelenítése
     document.getElementById('current-letter').textContent = room.letter;
-    document.getElementById('round-info').textContent = 'Idő: ' + room.roundTime + ' mp';
+    const roundNum = (room.currentRound || 0) + 1;
+    const totalRounds = room.totalRounds || 1;
+    document.getElementById('round-info').textContent = roundNum + '/' + totalRounds + '. kör  •  ' + room.roundTime + ' mp';
 
     // Kihívás badge megjelenítése
     const badge = document.getElementById('challenge-badge');
@@ -510,12 +520,52 @@ async function submitWord() {
   });
 }
 
-// ── Játék vége ──
+// ── Kör vége / következő kör ──
 async function endGame() {
   if (!currentRoomId) return;
   try {
-    await db.collection('rooms').doc(currentRoomId).update({ status: 'finished' });
-  } catch(e) {}
+    const roomSnap = await db.collection('rooms').doc(currentRoomId).get();
+    const room = roomSnap.data();
+    if (!room) return;
+
+    const currentRound = room.currentRound || 0;
+    const totalRounds = room.totalRounds || 1;
+    const nextRound = currentRound + 1;
+
+    if (nextRound >= totalRounds) {
+      // Összes kör lejátszva — vége
+      await db.collection('rooms').doc(currentRoomId).update({ status: 'finished' });
+    } else {
+      // Következő kör betöltése
+      const rounds = room.rounds || [];
+      const next = rounds[nextRound];
+      if (!next) {
+        await db.collection('rooms').doc(currentRoomId).update({ status: 'finished' });
+        return;
+      }
+
+      // Kör pontszámainak mentése
+      const roundScores = room.roundScores || {};
+      roundScores['round_' + currentRound] = {
+        [room.players[0]]: (room.scores && room.scores[room.players[0]]) || 0,
+        [room.players[1]]: (room.scores && room.scores[room.players[1]]) || 0,
+      };
+
+      // Következő kör indítása
+      myWords = [];
+      await db.collection('rooms').doc(currentRoomId).update({
+        currentRound: nextRound,
+        letter: next.letter,
+        roundTime: next.roundTime,
+        challenge: next.challenge || null,
+        startTime: Date.now() + 2000,
+        endTime: Date.now() + 2000 + next.roundTime * 1000,
+        words: {},
+        roundScores: roundScores,
+        status: 'playing'
+      });
+    }
+  } catch(e) { console.error(e); }
 }
 
 // ── Eredmény megjelenítése ──

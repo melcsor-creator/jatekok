@@ -546,14 +546,10 @@ async function acceptMainInvite() {
   const inv = invSnap.data();
   if (!inv) return;
 
-  // Szoba létrehozása
-  const times = [20, 30, 45, 60];
-  const roundTime = times[Math.floor(Math.random() * times.length)];
+  // Szoba létrehozása — 5 kör
+  const TOTAL_ROUNDS = 5;
+  const times = [20, 30, 45];
   const letters = 'ABCDEFGHIJKLMNOPRSTUVZ';
-  const letter = letters[Math.floor(Math.random() * letters.length)];
-  const myName = getSession();
-
-  // Random kihívás
   const CHALLENGES = [
     null, null, null,
     { type: 'minLen', value: 5, label: 'Minimum 5 betűs szavak!' },
@@ -561,18 +557,27 @@ async function acceptMainInvite() {
     { type: 'maxLen', value: 4, label: 'Maximum 4 betűs szavak!' },
     { type: 'contains', value: 'A', label: 'A szóban legyen A betű!' },
   ];
-  const challenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+  const rounds = Array.from({ length: TOTAL_ROUNDS }, () => ({
+    letter: letters[Math.floor(Math.random() * letters.length)],
+    roundTime: times[Math.floor(Math.random() * times.length)],
+    challenge: CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)] || null,
+  }));
+  const firstRound = rounds[0];
 
   const roomRef = await db.collection('rooms').add({
     players: [inv.from, myName],
-    letter: letter,
-    roundTime: roundTime,
-    challenge: challenge || null,
+    totalRounds: TOTAL_ROUNDS,
+    currentRound: 0,
+    rounds: rounds,
+    letter: firstRound.letter,
+    roundTime: firstRound.roundTime,
+    challenge: firstRound.challenge,
     startTime: Date.now() + 3000,
-    endTime: Date.now() + 3000 + roundTime * 1000,
+    endTime: Date.now() + 3000 + firstRound.roundTime * 1000,
     status: 'playing',
     words: {},
-    scores: { [inv.from]: 0, [myName]: 0 }
+    scores: { [inv.from]: 0, [myName]: 0 },
+    roundScores: {}
   });
 
   await db.collection('invites').doc(mainInviteId).update({
