@@ -544,10 +544,21 @@ async function acceptMainInvite() {
   const letter = letters[Math.floor(Math.random() * letters.length)];
   const myName = getSession();
 
+  // Random kihívás
+  const CHALLENGES = [
+    null, null, null,
+    { type: 'minLen', value: 5, label: 'Minimum 5 betűs szavak!' },
+    { type: 'minLen', value: 6, label: 'Minimum 6 betűs szavak!' },
+    { type: 'maxLen', value: 4, label: 'Maximum 4 betűs szavak!' },
+    { type: 'contains', value: 'A', label: 'A szóban legyen A betű!' },
+  ];
+  const challenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+
   const roomRef = await db.collection('rooms').add({
     players: [inv.from, myName],
     letter: letter,
     roundTime: roundTime,
+    challenge: challenge || null,
     startTime: Date.now() + 3000,
     endTime: Date.now() + 3000 + roundTime * 1000,
     status: 'playing',
