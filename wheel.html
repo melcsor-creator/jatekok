@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="google-adsense-account" content="ca-pub-6255373288681857">
+  <title>AkasztófaOnline – Szerencsekerék</title>
+  <link rel="stylesheet" href="style.css?v=8" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6255373288681857" crossorigin="anonymous"></script>
+  <style>
+    .wheel-wrap { max-width: 500px; margin: 0 auto; padding: 24px 16px; text-align: center; }
+    .wheel-container { position: relative; margin: 24px auto; width: 320px; height: 320px; }
+    #wheel-canvas { border-radius: 50%; box-shadow: 0 0 30px rgba(124,92,252,0.4); cursor: pointer; }
+    .wheel-pointer {
+      position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 14px solid transparent;
+      border-right: 14px solid transparent;
+      border-top: 32px solid var(--accent);
+      filter: drop-shadow(0 2px 6px rgba(124,92,252,0.6));
+      z-index: 10;
+    }
+    .spin-btn {
+      margin-top: 24px; padding: 16px 48px; font-size: 1.2rem;
+      font-weight: 800; border-radius: 12px; cursor: pointer; border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; transition: all .2s; font-family: inherit;
+    }
+    .spin-btn:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(124,92,252,0.4); }
+    .spin-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .cooldown-msg { color: var(--muted); font-size: .9rem; margin-top: 12px; min-height: 22px; }
+    .result-msg {
+      margin-top: 20px; padding: 16px 24px; border-radius: 12px;
+      font-size: 1.2rem; font-weight: 700; display: none;
+    }
+    .result-msg.show { display: block; animation: fadeIn .4s ease; }
+    .result-msg.win { background: rgba(92,252,142,0.12); color: var(--green); border: 1px solid var(--green); }
+    .result-msg.lose { background: rgba(252,92,92,0.08); color: var(--muted); border: 1px solid var(--border); }
+    .coins-display { font-size: 1.1rem; color: var(--gold); font-weight: 700; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="logo">🪢 AkasztófaOnline</div>
+  <nav class="nav-links">
+    <a href="index.html">Főoldal</a>
+    <a href="game.html">Játék</a>
+    <a href="leaderboard.html">🏆 Ranglista</a>
+    <button onclick="openSettings()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;">⚙️ Beállítások</button>
+    <span id="nav-user" style="color:var(--muted);font-size:.9rem;"></span>
+    <a href="profile.html" id="nav-profile" style="display:none;">Profilom</a>
+    <button id="nav-logout" style="display:none;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;" onclick="doLogout()">Kilépés</button>
+  </nav>
+</header>
+
+<div class="wheel-wrap">
+  <h1 style="font-size:1.8rem;font-weight:900;margin-bottom:4px;">🎡 Szerencsekerék</h1>
+  <p style="color:var(--muted);font-size:.9rem;">Naponta egyszer pörgesd meg — nyerhetsz csillagokat!</p>
+
+  <div class="coins-display">Egyenleged: <span id="coins-val">?</span> ⭐</div>
+
+  <div class="wheel-container">
+    <div class="wheel-pointer"></div>
+    <canvas id="wheel-canvas" width="320" height="320"></canvas>
+  </div>
+
+  <button class="spin-btn" id="spin-btn" onclick="spinWheel()">🎡 Pörgetés!</button>
+  <div class="cooldown-msg" id="cooldown-msg"></div>
+  <div class="result-msg" id="result-msg"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+<script src="settings.js"></script>
+<script>
+const SESSION_KEY = 'doorpuzzle_session';
+const username = localStorage.getItem(SESSION_KEY);
+if (!username) { window.location.href = 'index.html'; }
+
+document.getElementById('nav-user').textContent = username;
+document.getElementById('nav-profile').style.display = 'inline';
+document.getElementById('nav-profile').href = 'profile.html?player=' + encodeURIComponent(username);
+document.getElementById('nav-logout').style.display = 'inline';
+function doLogout() { localStorage.removeItem(SESSION_KEY); window.location.href = 'index.html'; }
+
+// ── Kerék szegmensek ──
+const SEGMENTS = [
+  { label: '5 ⭐',  coins: 5,   color: '#7c5cfc' },
+  { label: 'Semmi', coins: 0,   color: '#2e2e5e' },
+  { label: '10 ⭐', coins: 10,  color: '#c45cfc' },
+  { label: '2 ⭐',  coins: 2,   color: '#5566cc' },
+  { label: '50 ⭐', coins: 50,  color: '#f5c842' },
+  { label: 'Semmi', coins: 0,   color: '#2e2e5e' },
+  { label: '20 ⭐', coins: 20,  color: '#5cfc8e' },
+  { label: '3 ⭐',  coins: 3,   color: '#fc5c5c' },
+];
+
+const COOLDOWN_HOURS = 24;
+const COOLDOWN_KEY = 'wheel_last_spin_' + username;
+
+let isSpinning = false;
+let currentAngle = 0;
+
+// ── Canvas rajzolás ──
+const canvas = document.getElementById('wheel-canvas');
+const ctx = canvas.getContext('2d');
+const cx = canvas.width / 2;
+const cy = canvas.height / 2;
+const radius = cx - 8;
+
+function drawWheel(angle) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const segAngle = (2 * Math.PI) / SEGMENTS.length;
+
+  SEGMENTS.forEach((seg, i) => {
+    const start = angle + i * segAngle;
+    const end = start + segAngle;
+
+    // Szegmens
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.fill();
+    ctx.strokeStyle = '#0d0d1a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Szöveg
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + segAngle / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 15px Segoe UI, sans-serif';
+    ctx.fillText(seg.label, radius - 14, 5);
+    ctx.restore();
+  });
+
+  // Középső kör
+  ctx.beginPath();
+  ctx.arc(cx, cy, 22, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fill();
+  ctx.strokeStyle = '#7c5cfc';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+
+// ── Cooldown ellenőrzés ──
+function checkCooldown() {
+  const last = parseInt(localStorage.getItem(COOLDOWN_KEY) || '0');
+  const now = Date.now();
+  const diff = now - last;
+  const cooldownMs = COOLDOWN_HOURS * 60 * 60 * 1000;
+  if (diff < cooldownMs) {
+    const remaining = cooldownMs - diff;
+    const h = Math.floor(remaining / 3600000);
+    const m = Math.floor((remaining % 3600000) / 60000);
+    return { canSpin: false, remaining: h + ' óra ' + m + ' perc' };
+  }
+  return { canSpin: true };
+}
+
+function updateCooldownUI() {
+  const cd = checkCooldown();
+  const btn = document.getElementById('spin-btn');
+  const msg = document.getElementById('cooldown-msg');
+  if (!cd.canSpin) {
+    btn.disabled = true;
+    msg.textContent = '⏳ Következő pörgetés: ' + cd.remaining + ' múlva';
+  } else {
+    btn.disabled = false;
+    msg.textContent = '';
+  }
+}
+
+// ── Pörgetés ──
+function spinWheel() {
+  const cd = checkCooldown();
+  if (!cd.canSpin || isSpinning) return;
+
+  isSpinning = true;
+  document.getElementById('spin-btn').disabled = true;
+  document.getElementById('result-msg').className = 'result-msg';
+
+  // Véletlenszerű szegmens kiválasztása (50 feletti súlyozás ritka)
+  const weights = [20, 30, 10, 25, 2, 30, 5, 25]; // semmi és kis értékek valószínűbbek
+  const totalWeight = weights.reduce((a,b) => a+b, 0);
+  let rand = Math.random() * totalWeight;
+  let chosen = 0;
+  for (let i = 0; i < weights.length; i++) {
+    rand -= weights[i];
+    if (rand <= 0) { chosen = i; break; }
+  }
+
+  const segAngle = (2 * Math.PI) / SEGMENTS.length;
+  // A pointer tetején van (3/2 PI = felső), a kerék elforog
+  const targetAngle = (3/2 * Math.PI) - (chosen * segAngle) - (segAngle / 2);
+  const fullRotations = (5 + Math.floor(Math.random() * 5)) * 2 * Math.PI;
+  const finalAngle = fullRotations + targetAngle - currentAngle;
+
+  let start = null;
+  const duration = 4000 + Math.random() * 1500;
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+  function animate(ts) {
+    if (!start) start = ts;
+    const elapsed = ts - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const angle = currentAngle + finalAngle * easeOut(progress);
+    drawWheel(angle);
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      currentAngle = angle % (2 * Math.PI);
+      isSpinning = false;
+      onSpinEnd(chosen);
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+async function onSpinEnd(segIndex) {
+  const seg = SEGMENTS[segIndex];
+  localStorage.setItem(COOLDOWN_KEY, Date.now().toString());
+
+  const resultEl = document.getElementById('result-msg');
+
+  if (seg.coins > 0) {
+    // Csillag jóváírás Firebase-ben
+    try {
+      await db.collection('users').doc(username).update({
+        coins: firebase.firestore.FieldValue.increment(seg.coins)
+      });
+      resultEl.textContent = '🎉 Nyertél ' + seg.coins + ' csillagot!';
+      resultEl.className = 'result-msg show win';
+      loadCoins();
+    } catch(e) {
+      resultEl.textContent = '🎉 Nyertél ' + seg.coins + ' csillagot!';
+      resultEl.className = 'result-msg show win';
+    }
+  } else {
+    resultEl.textContent = '😔 Sajnos most nem nyertél. Holnap újra próbálhatod!';
+    resultEl.className = 'result-msg show lose';
+  }
+
+  updateCooldownUI();
+}
+
+async function loadCoins() {
+  try {
+    const snap = await db.collection('users').doc(username).get();
+    if (snap.exists) {
+      document.getElementById('coins-val').textContent = snap.data().coins || 0;
+    }
+  } catch(e) {}
+}
+
+// Indítás
+drawWheel(0);
+updateCooldownUI();
+loadCoins();
+
+// Percenként frissíti a visszaszámlálót
+setInterval(updateCooldownUI, 60000);
+</script>
+</body>
+</html>

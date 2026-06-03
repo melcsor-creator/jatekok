@@ -15,14 +15,14 @@ const DIFFICULTY = {
 
 const WORDS_EASY = {
   allatok: [
-    {word:"KUTYA",hint:"Háziállat, az ember legjobb barátja"},
+    {word:"KUTYA",hint:"Az ember legjobb barátja"},
     {word:"MACSKA",hint:"Doromboló háziállat"},
-    {word:"LÓ",hint:"Nagy sörényes állat, lovagolnak rajta"},
+    {word:"LÓ",hint:"Nagy állat, lovagolnak rajta"},
     {word:"TEHÉN",hint:"Tejet ad, réten legel"},
     {word:"DISZNÓ",hint:"Röfög, rózsaszín"},
-    {word:"CSIRKE",hint:"Kotkodál, tojást tojik"},
+    {word:"CSIRKE",hint:"Tojást tojik, kotkodál"},
     {word:"KACSA",hint:"Hápog, vízben úszik"},
-    {word:"NYÚL",hint:"Hosszú fülű, ugráló állat"},
+    {word:"NYÚL",hint:"Hosszú fülű, ugrál"},
     {word:"EGÉR",hint:"Kis rágcsáló, sajtot szeret"},
     {word:"BÉKA",hint:"Brekeg, vízben él"},
     {word:"MEDVE",hint:"Nagy barna állat, télen alszik"},
