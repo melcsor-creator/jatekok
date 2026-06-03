@@ -154,6 +154,15 @@ if (!username) { window.location.href = 'index.html'; }
 document.getElementById('nav-user').textContent = username;
 function doLogout() { localStorage.removeItem(SESSION_KEY); window.location.href = 'index.html'; }
 
+// Presence — páros játék
+function setParosPresence() {
+  db.collection('presence').doc(username).set({ name: username, online: true, where: 'páros játék', since: Date.now() }).catch(()=>{});
+}
+setParosPresence();
+setInterval(setParosPresence, 20000);
+window.addEventListener('beforeunload', () => db.collection('presence').doc(username).delete().catch(()=>{}));
+window.addEventListener('pagehide', () => db.collection('presence').doc(username).delete().catch(()=>{}));
+
 function stringToColor(s) {
   const c=['#7c5cfc','#c45cfc','#fc5c5c','#5cfc8e','#f5c842','#5c9efc','#fc9e5c','#5cfcdc'];
   let h=0; for(let i=0;i<s.length;i++) h=s.charCodeAt(i)+((h<<5)-h);

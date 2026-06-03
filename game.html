@@ -174,7 +174,7 @@ function setOnline() {
   db.collection('presence').doc(username).set({
     name: username,
     online: true,
-    where: 'játék',
+    where: 'akasztófa',
     since: Date.now()
   }).catch(()=>{});
 }

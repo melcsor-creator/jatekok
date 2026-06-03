@@ -180,6 +180,12 @@ if (!username) { window.location.href = 'index.html'; }
 document.getElementById('nav-user').textContent = username;
 function doLogout() { localStorage.removeItem(SESSION_KEY); window.location.href = 'index.html'; }
 
+// Presence — szókapcsolat játék
+db.collection('presence').doc(username).set({ name: username, online: true, where: 'szókapcsolat', since: Date.now() }).catch(()=>{});
+setInterval(() => db.collection('presence').doc(username).set({ name: username, online: true, where: 'szókapcsolat', since: Date.now() }).catch(()=>{}), 20000);
+window.addEventListener('beforeunload', () => db.collection('presence').doc(username).delete().catch(()=>{}));
+window.addEventListener('pagehide', () => db.collection('presence').doc(username).delete().catch(()=>{}));
+
 const MAX_LIVES = 3;
 const HINT_COST = 5;
 const SAVE_KEY = 'szokap_progress_' + username;

@@ -90,6 +90,12 @@ document.getElementById('nav-profile').href = 'profile.html?player=' + encodeURI
 document.getElementById('nav-logout').style.display = 'inline';
 function doLogout() { localStorage.removeItem(SESSION_KEY); window.location.href = 'index.html'; }
 
+// Presence — kerék
+db.collection('presence').doc(username).set({ name: username, online: true, where: 'kerék', since: Date.now() }).catch(()=>{});
+setInterval(() => db.collection('presence').doc(username).set({ name: username, online: true, where: 'kerék', since: Date.now() }).catch(()=>{}), 20000);
+window.addEventListener('beforeunload', () => db.collection('presence').doc(username).delete().catch(()=>{}));
+window.addEventListener('pagehide', () => db.collection('presence').doc(username).delete().catch(()=>{}));
+
 // ── Kerék szegmensek ──
 const SEGMENTS = [
   { label: '5 ⭐',  coins: 5,   color: '#7c5cfc' },
