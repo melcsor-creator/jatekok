@@ -473,6 +473,106 @@ async function loadLeaderboard() {
   }
 }
 
+// ── Meghívó értesítő a főmenüben ──
+function watchInvitesOnMain(myName) {
+  db.collection('invites')
+    .where('to', '==', myName)
+    .where('status', '==', 'pending')
+    .onSnapshot(snap => {
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const inv = change.doc.data();
+          // Ne régi meghívókat mutasson (max 30 másodperces)
+          if (Date.now() - (inv.created || 0) > 30000) return;
+          showMainInviteNotif(change.doc.id, inv.from);
+        }
+      });
+    });
+}
+
+let mainInviteId = null;
+
+function showMainInviteNotif(inviteId, fromName) {
+  mainInviteId = inviteId;
+
+  // Ha már van értesítő, töröljük
+  const existing = document.getElementById('main-invite-notif');
+  if (existing) existing.remove();
+
+  const notif = document.createElement('div');
+  notif.id = 'main-invite-notif';
+  notif.style.cssText = `
+    position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+    background: var(--card); border: 2px solid var(--accent);
+    border-radius: 16px; padding: 20px 28px; z-index: 999;
+    box-shadow: var(--shadow); text-align: center;
+    min-width: 300px; max-width: 90vw;
+    animation: fadeIn .3s ease;
+  `;
+  notif.innerHTML = `
+    <div style="font-size:1.5rem;margin-bottom:6px;">⚔️</div>
+    <div style="font-weight:800;font-size:1.05rem;margin-bottom:4px;">${fromName} páros játékra hív!</div>
+    <div style="color:var(--muted);font-size:.85rem;margin-bottom:14px;">Elfogadod a kihívást?</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button class="btn btn-primary btn-sm" onclick="acceptMainInvite()">Elfogad</button>
+      <button class="btn btn-outline btn-sm" onclick="declineMainInvite()">Elutasít</button>
+    </div>
+  `;
+  document.body.appendChild(notif);
+
+  // 30 mp után automatikusan eltűnik
+  setTimeout(() => {
+    if (document.getElementById('main-invite-notif')) {
+      declineMainInvite();
+    }
+  }, 30000);
+}
+
+async function acceptMainInvite() {
+  const notif = document.getElementById('main-invite-notif');
+  if (notif) notif.remove();
+  if (!mainInviteId) return;
+
+  const invSnap = await db.collection('invites').doc(mainInviteId).get();
+  const inv = invSnap.data();
+  if (!inv) return;
+
+  // Szoba létrehozása
+  const times = [20, 30, 45, 60];
+  const roundTime = times[Math.floor(Math.random() * times.length)];
+  const letters = 'ABCDEFGHIJKLMNOPRSTUVZ';
+  const letter = letters[Math.floor(Math.random() * letters.length)];
+  const myName = getSession();
+
+  const roomRef = await db.collection('rooms').add({
+    players: [inv.from, myName],
+    letter: letter,
+    roundTime: roundTime,
+    startTime: Date.now() + 3000,
+    endTime: Date.now() + 3000 + roundTime * 1000,
+    status: 'playing',
+    words: {},
+    scores: { [inv.from]: 0, [myName]: 0 }
+  });
+
+  await db.collection('invites').doc(mainInviteId).update({
+    status: 'accepted',
+    roomId: roomRef.id
+  });
+
+  // Átirányítás a páros játékba a szobával
+  window.location.href = 'paros.html?roomId=' + roomRef.id + '&opp=' + encodeURIComponent(inv.from);
+}
+
+function declineMainInvite() {
+  const notif = document.getElementById('main-invite-notif');
+  if (notif) notif.remove();
+  if (mainInviteId) {
+    db.collection('invites').doc(mainInviteId).update({ status: 'declined' }).catch(()=>{});
+    mainInviteId = null;
+  }
+}
+
 // ── Presence — főmenüben is online ──
 function setPresence(name) {
   db.collection('presence').doc(name).set({

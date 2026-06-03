@@ -400,7 +400,10 @@ async function submitWord() {
     return;
   }
 
-  if (!isValidWord(word)) {
+  feedback.textContent = '🔍 Ellenőrzés...';
+  feedback.style.color = 'var(--muted)';
+
+  if (!await isValidWord(word)) {
     feedback.textContent = '❌ Ismeretlen szó: ' + word;
     feedback.style.color = 'var(--red)';
     input.classList.add('shake');
