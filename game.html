@@ -608,12 +608,20 @@ function submitMobileLetter() {
   updateUsedLetters();
 }
 
-// Enter a mobil beviteli mezőnél
+// Enter a mobil beviteli mezőnél + automatikus küldés beírás után
 document.addEventListener('DOMContentLoaded', () => {
   const inp = document.getElementById('mobile-letter-input');
   if (inp) {
+    // Enter gomb
     inp.addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); submitMobileLetter(); }
+    });
+    // Automatikus küldés: ha beírt 1 betűt, azonnal elküldi
+    inp.addEventListener('input', e => {
+      const val = inp.value.trim();
+      if (val.length === 1) {
+        setTimeout(() => submitMobileLetter(), 100);
+      }
     });
   }
 });
