@@ -632,35 +632,22 @@ document.addEventListener('keydown', e => {
 
 // ── Üdvözlő toast ──
 function showWelcomeToast(name) {
-  const hour = new Date().getHours();
-  let greeting, emoji;
-  if (hour >= 5 && hour < 10) {
-    greeting = 'Jó reggelt'; emoji = '🌅';
-  } else if (hour >= 10 && hour < 12) {
-    greeting = 'Jó délelőttöt'; emoji = '☀️';
-  } else if (hour >= 12 && hour < 18) {
-    greeting = 'Jó napot'; emoji = '🌤️';
-  } else if (hour >= 18 && hour < 22) {
-    greeting = 'Jó estét'; emoji = '🌆';
-  } else {
-    greeting = 'Jó éjszakát'; emoji = '🌙';
-  }
-
   const messages = [
-    'Készen állsz a játékra?',
-    'Ma is nyerni fogunk!',
-    'Szép napot kívánunk!',
-    'Remek, hogy itt vagy!',
-    'Vágjunk bele!',
+    { text: 'Szuper hogy itt vagy, ', emoji: '👋' },
+    { text: 'Üdv vissza a játékban, ', emoji: '🎮' },
+    { text: 'Készen állsz a kihívásra, ', emoji: '🔥' },
+    { text: 'Jó látni téged, ', emoji: '😊' },
+    { text: 'Ma is győzni fogunk, ', emoji: '🏆' },
+    { text: 'Kezdjük el a móókát, ', emoji: '🎉' },
+    { text: 'Örülünk hogy visszajöttél, ', emoji: '⭐' },
   ];
-  const msg = messages[Math.floor(Math.random() * messages.length)];
+  const m = messages[Math.floor(Math.random() * messages.length)];
 
   const toast = document.createElement('div');
   toast.id = 'welcome-toast';
   toast.innerHTML =
-    '<div style="font-size:2.2rem;margin-bottom:6px;">' + emoji + '</div>' +
-    '<div style="font-size:1.1rem;font-weight:900;color:var(--text);">' + greeting + ', <span style="color:var(--accent);">' + name + '</span>!</div>' +
-    '<div style="font-size:.88rem;color:var(--muted);margin-top:4px;">' + msg + '</div>';
+    '<div style="font-size:2.2rem;margin-bottom:6px;">' + m.emoji + '</div>' +
+    '<div style="font-size:1.1rem;font-weight:900;color:var(--text);">' + m.text + '<span style="color:var(--accent);">' + name + '</span>!</div>';
   toast.style.cssText =
     'position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(80px);' +
     'background:var(--card);border:1px solid var(--accent);border-radius:16px;' +
@@ -669,7 +656,6 @@ function showWelcomeToast(name) {
     'transition:transform .4s cubic-bezier(.34,1.56,.64,1), opacity .4s ease;opacity:0;';
   document.body.appendChild(toast);
 
-  // Beúszik
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       toast.style.transform = 'translateX(-50%) translateY(0)';
@@ -677,7 +663,6 @@ function showWelcomeToast(name) {
     });
   });
 
-  // 3.5mp után kicsúszik
   setTimeout(() => {
     toast.style.transform = 'translateX(-50%) translateY(80px)';
     toast.style.opacity = '0';
