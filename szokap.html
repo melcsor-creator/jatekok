@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google-adsense-account" content="ca-pub-6255373288681857">
-  <title>Online JĂˇtĂ©kok â€“ SzĂłkapcsolat</title>
+  <title>Online Játékok – Szókapcsolat</title>
   <link rel="stylesheet" href="style.css?v=8" />
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6255373288681857" crossorigin="anonymous"></script>
   <style>
@@ -68,19 +68,6 @@
     .hud .level-info span { color: var(--text); font-weight: 700; }
     .hud .coins { color: var(--gold); font-weight: 700; }
 
-    .hint-bar { text-align: center; margin-bottom: 14px; }
-    .hint-btn {
-      background: var(--bg2); border: 1px solid var(--gold);
-      border-radius: 8px; color: var(--gold); padding: 8px 18px;
-      font-size: .88rem; font-weight: 700; cursor: pointer;
-      transition: all .2s; font-family: inherit;
-    }
-    .hint-btn:hover:not(:disabled) { background: rgba(245,200,66,0.1); }
-    .hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .hint-text {
-      color: var(--gold); font-size: .88rem; margin-top: 8px; min-height: 20px;
-    }
-
     .diff-badge {
       display: inline-block; padding: 3px 10px; border-radius: 999px;
       font-size: .75rem; font-weight: 700; margin-left: 8px;
@@ -108,15 +95,15 @@
 <body>
 
 <header class="site-header">
-  <div class="logo">[ Online JĂˇtĂ©kok ]</div>
+  <div class="logo">[ Online Játékok ]</div>
   <nav class="nav-links">
     <span id="nav-user" style="color:var(--muted);font-size:.9rem;"></span>
-    <a href="index.html">FĹ‘oldal</a>
-    <a href="game.html">AkasztĂłfa</a>
-    <a href="wheel.html">đźŽˇ KerĂ©k</a>
-    <a href="leaderboard.html">đźŹ† Ranglista</a>
-    <button onclick="openSettings()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;">âš™ď¸Ź BeĂˇllĂ­tĂˇsok</button>
-    <button onclick="doLogout()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;">KilĂ©pĂ©s</button>
+    <a href="index.html">Főoldal</a>
+    <a href="game.html">Akasztófa</a>
+    <a href="wheel.html">★ Kerék</a>
+    <a href="leaderboard.html">Ranglista</a>
+    <button onclick="openSettings()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;">⚙ Beállítások</button>
+    <button onclick="doLogout()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;">Kilépés</button>
   </nav>
 </header>
 
@@ -125,16 +112,16 @@
   <div class="hud">
     <div class="lives" id="lives-display"></div>
     <div class="level-info">Szint: <span id="level-display">1</span></div>
-    <div class="coins">â­ <span id="coins-display">0</span></div>
+    <div class="coins">⭐ <span id="coins-display">0</span></div>
   </div>
 
   <div id="game-screen" class="card fadeIn">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-      <span class="level-badge" id="diff-badge">KĂ¶nnyĹ±</span>
-      <span style="color:var(--muted);font-size:.82rem;" id="progress-text">1 / 50 feladat</span>
+      <span class="level-badge" id="diff-badge">Könnyű</span>
+      <span style="color:var(--muted);font-size:.82rem;" id="progress-text">1. feladat</span>
     </div>
 
-    <p class="question-text">Mi a kĂ¶zĂ¶s a kĂ¶vetkezĹ‘ nĂ©gy szĂłban?</p>
+    <p class="question-text">Mi a közös a következő négy szóban?</p>
 
     <div class="words-grid" id="words-grid"></div>
 
@@ -146,7 +133,7 @@
 
 </div>
 
-<!-- EredmĂ©ny -->
+<!-- Eredmény -->
 <div class="result-overlay" id="result-overlay" style="display:none;">
   <div class="result-box">
     <div class="big-icon" id="res-icon"></div>
@@ -154,10 +141,10 @@
     <div class="res-score" id="res-score"></div>
     <p id="res-sub" style="color:var(--muted);margin-bottom:20px;"></p>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-      <button class="btn btn-primary" id="res-next-btn" onclick="nextPuzzle()">âžś KĂ¶vetkezĹ‘</button>
-      <button class="btn btn-outline" id="res-skip-btn" style="display:none;" onclick="skipWithStars()">â­ KihagyĂˇs (5 csillag)</button>
-      <button class="btn btn-outline" id="res-restart-btn" style="display:none;" onclick="restartGame()">đź”„ Ăšjrakezd</button>
-      <a href="index.html" class="btn btn-outline">FĹ‘oldal</a>
+      <button class="btn btn-primary" id="res-next-btn" onclick="nextPuzzle()">Következő</button>
+      <button class="btn btn-outline" id="res-skip-btn" style="display:none;" onclick="skipWithStars()">⭐ Kihagyás (5 csillag)</button>
+      <button class="btn btn-outline" id="res-restart-btn" style="display:none;" onclick="restartGame()">Újrakezd</button>
+      <a href="index.html" class="btn btn-outline">Főoldal</a>
     </div>
   </div>
 </div>
@@ -177,40 +164,54 @@ document.getElementById('nav-user').textContent = username;
 function doLogout() { localStorage.removeItem(SESSION_KEY); window.location.href = 'index.html'; }
 
 // Presence
-db.collection('presence').doc(username).set({ name: username, online: true, where: 'szĂłkapcsolat', since: Date.now() }).catch(()=>{});
-setInterval(() => db.collection('presence').doc(username).set({ name: username, online: true, where: 'szĂłkapcsolat', since: Date.now() }).catch(()=>{}), 20000);
+db.collection('presence').doc(username).set({ name: username, online: true, where: 'szókapcsolat', since: Date.now() }).catch(()=>{});
+setInterval(() => db.collection('presence').doc(username).set({ name: username, online: true, where: 'szókapcsolat', since: Date.now() }).catch(()=>{}), 20000);
 window.addEventListener('beforeunload', () => db.collection('presence').doc(username).delete().catch(()=>{}));
 window.addEventListener('pagehide', () => db.collection('presence').doc(username).delete().catch(()=>{}));
 
 const MAX_LIVES = 3;
 const SKIP_COST = 5;
-const SAVE_KEY = 'szokap_progress_' + username;
 
-// Ă‰let az EGĂ‰SZ jĂˇtĂ©kra vonatkozik, nem szintenkĂ©nt reset
+// Megoldott feladványok — Firestore-ban tárolva (minden eszközön megmarad)
+let solvedSet = new Set();
+
+// Élet az EGÉSZ játékra vonatkozik, nem szintenként reset
 let lives = MAX_LIVES;
 let coins = 0;
 let currentLevel = 0;
 let answered = false;
 
-function getSolvedSet() {
-  try { return new Set(JSON.parse(localStorage.getItem(SAVE_KEY) || '[]')); } catch(e) { return new Set(); }
+async function loadSolvedFromDB() {
+  try {
+    const snap = await db.collection('users').doc(username).get();
+    if (snap.exists) {
+      const arr = (snap.data().szokapSolved) || [];
+      solvedSet = new Set(arr);
+    }
+  } catch(e) { solvedSet = new Set(); }
 }
-function markSolved(idx) {
-  const s = getSolvedSet(); s.add(idx);
-  localStorage.setItem(SAVE_KEY, JSON.stringify([...s]));
+
+async function markSolved(idx) {
+  solvedSet.add(idx);
+  try {
+    await db.collection('users').doc(username).update({
+      szokapSolved: firebase.firestore.FieldValue.arrayUnion(idx)
+    });
+  } catch(e) { console.error(e); }
 }
 
 function getPuzzleForLevel(level) {
-  const solved = getSolvedSet();
   let pool;
   if (level <= 10)      pool = SZOKAP_PUZZLES.filter(p => p.difficulty === 1);
   else if (level <= 25) pool = SZOKAP_PUZZLES.filter(p => p.difficulty <= 2);
   else if (level <= 40) pool = SZOKAP_PUZZLES.filter(p => p.difficulty <= 3);
   else                  pool = SZOKAP_PUZZLES;
 
-  const available = pool.filter(p => !solved.has(SZOKAP_PUZZLES.indexOf(p)));
+  const available = pool.filter(p => !solvedSet.has(SZOKAP_PUZZLES.indexOf(p)));
   if (available.length === 0) {
-    localStorage.removeItem(SAVE_KEY);
+    // Mindent megoldott — reset csak ezt a nehézséget
+    pool.forEach(p => solvedSet.delete(SZOKAP_PUZZLES.indexOf(p)));
+    db.collection('users').doc(username).update({ szokapSolved: [...solvedSet] }).catch(()=>{});
     return pool[Math.floor(Math.random() * pool.length)];
   }
   return available[Math.floor(Math.random() * available.length)];
@@ -223,7 +224,7 @@ function loadPuzzle() {
   currentPuzzle = getPuzzleForLevel(currentLevel);
   if (!currentPuzzle) return;
 
-  const diffLabels = {1:'đźź˘ KĂ¶nnyĹ±', 2:'đźźˇ KĂ¶zepes', 3:'đź”´ NehĂ©z', 4:'âšˇ Mester'};
+  const diffLabels = {1:'Könnyű', 2:'Közepes', 3:'Nehéz', 4:'Mester'};
   const diffColors = {1:'diff-1', 2:'diff-2', 3:'diff-3', 4:'diff-4'};
   const badge = document.getElementById('diff-badge');
   badge.textContent = diffLabels[currentPuzzle.difficulty];
@@ -263,29 +264,26 @@ function chooseAnswer(answer) {
       b.disabled = true;
       if (b.textContent === correct) b.classList.add('correct');
     });
-    fb.textContent = 'âś… Helyes! A kapcsolat: ' + correct;
+    fb.textContent = '✅ Helyes! A kapcsolat: ' + correct;
     fb.className = 'feedback show correct';
     markSolved(SZOKAP_PUZZLES.indexOf(currentPuzzle));
-
     setTimeout(() => showResult(true), 800);
   } else {
-    // Csak a rossz vĂˇlaszt jelĂ¶ljĂĽk
     btns.forEach(b => { if (b.textContent === answer) b.classList.add('wrong'); });
     lives--;
     renderHUD();
 
     if (lives <= 0) {
-      // Elfogott az Ă©let â€” megmutatjuk a helyeset + kihagyĂˇs opciĂł
       answered = true;
       btns.forEach(b => {
         b.disabled = true;
         if (b.textContent === correct) b.classList.add('correct');
       });
-      fb.textContent = 'âťŚ Elfogytak az Ă©leteid!';
+      fb.textContent = '❌ Elfogytak az életeid!';
       fb.className = 'feedback show wrong';
       setTimeout(() => showResult(false), 800);
     } else {
-      fb.textContent = 'âťŚ Nem ez! MĂ©g ' + lives + ' Ă©leted van.';
+      fb.textContent = '❌ Nem ez! Még ' + lives + ' életed van.';
       fb.className = 'feedback show wrong';
     }
   }
@@ -298,24 +296,23 @@ function showResult(won) {
   const restartBtn = document.getElementById('res-restart-btn');
 
   if (won) {
-    document.getElementById('res-icon').textContent = 'đźŽ‰';
+    document.getElementById('res-icon').textContent = '🎉';
     document.getElementById('res-title').textContent = 'Helyes!';
     document.getElementById('res-score').textContent = 'A kapcsolat: ' + currentPuzzle.answer;
-    document.getElementById('res-sub').textContent = (currentLevel + 1) + '. feladat teljesĂ­tve!';
+    document.getElementById('res-sub').textContent = (currentLevel + 1) + '. feladat teljesítve!';
     nextBtn.style.display = 'inline-flex';
-    nextBtn.textContent = 'âžś KĂ¶vetkezĹ‘';
+    nextBtn.textContent = 'Következő ➜';
     nextBtn.onclick = nextPuzzle;
     skipBtn.style.display = 'none';
     restartBtn.style.display = 'none';
   } else {
-    document.getElementById('res-icon').textContent = 'đź’”';
-    document.getElementById('res-title').textContent = 'Elfogytak az Ă©leteid!';
-    document.getElementById('res-score').textContent = 'Helyes vĂˇlasz: ' + currentPuzzle.answer;
-    document.getElementById('res-sub').textContent = 'Kihagyhatod ezt a feladatot ' + SKIP_COST + ' csillagĂ©rt, vagy Ăşjrakezded.';
+    document.getElementById('res-icon').textContent = '💔';
+    document.getElementById('res-title').textContent = 'Elfogytak az életeid!';
+    document.getElementById('res-score').textContent = 'Helyes válasz: ' + currentPuzzle.answer;
+    document.getElementById('res-sub').textContent = 'Kihagyhatod ezt a feladatot ' + SKIP_COST + ' csillagért, vagy újrakezded.';
     nextBtn.style.display = 'none';
-    // KihagyĂˇs gomb â€” csak ha van elĂ©g csillag
     skipBtn.style.display = 'inline-flex';
-    skipBtn.textContent = 'â­ KihagyĂˇs (' + SKIP_COST + ' csillag)';
+    skipBtn.textContent = '⭐ Kihagyás (' + SKIP_COST + ' csillag)';
     skipBtn.disabled = coins < SKIP_COST;
     skipBtn.style.opacity = coins < SKIP_COST ? '0.4' : '1';
     restartBtn.style.display = 'inline-flex';
@@ -325,7 +322,6 @@ function showResult(won) {
 
 function nextPuzzle() {
   currentLevel++;
-  // Ă‰let NEM resetelĹ‘dik szintenkĂ©nt
   loadPuzzle();
 }
 
@@ -335,7 +331,6 @@ function skipWithStars() {
   db.collection('users').doc(username).update({
     coins: firebase.firestore.FieldValue.increment(-SKIP_COST)
   }).catch(e => console.error(e));
-  // Ă‰let visszatĂ¶ltĂ©se kihagyĂˇskor
   lives = MAX_LIVES;
   currentLevel++;
   loadPuzzle();
@@ -351,7 +346,7 @@ function renderHUD() {
   const el = document.getElementById('lives-display');
   el.innerHTML = '';
   for (let i = 0; i < MAX_LIVES; i++) {
-    el.innerHTML += i < lives ? 'âť¤ď¸Ź' : 'đź–¤';
+    el.innerHTML += i < lives ? '❤️' : '🖤';
   }
   document.getElementById('coins-display').textContent = coins;
 }
@@ -377,7 +372,7 @@ function watchCoins() {
 
 loadCoins();
 watchCoins();
-loadPuzzle();
+loadSolvedFromDB().then(() => loadPuzzle());
 </script>
 </body>
 </html>
