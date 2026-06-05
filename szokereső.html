@@ -632,6 +632,10 @@ function renderWordLists(foundWords, oppName) {
 }
 
 // ── Drag & Select logika ──
+let dragStartCell = null;   // első cella ahol lenyomta
+let dragDir = null;         // { dr, dc } — rögzített irány
+let dragActive = false;     // csak akkor aktív ha tényleg mozdult egy cellányit
+
 function attachDragEvents() {
   const cells = document.querySelectorAll('.sw-cell');
 
@@ -656,8 +660,11 @@ function startDrag(e) {
   const cell = e.target.closest ? e.target.closest('.sw-cell') : getCellFromPoint(e.clientX, e.clientY);
   if (!cell) return;
   isDragging = true;
+  dragActive = false;
+  dragDir = null;
+  dragStartCell = { r: +cell.dataset.r, c: +cell.dataset.c };
   dragCells = [{ r: +cell.dataset.r, c: +cell.dataset.c }];
-  cell.classList.add('selecting');
+  // Nem jelöljük még be — csak ha tényleg húz
 }
 
 function onDragMove(e) {
@@ -666,7 +673,26 @@ function onDragMove(e) {
   if (!cell) return;
   const r = +cell.dataset.r, c = +cell.dataset.c;
 
-  // Ha ez a cella már benne van, ne adjuk hozzá újra
+  // Azonos cella — semmi
+  if (r === dragStartCell.r && c === dragStartCell.c) return;
+
+  // Az irány még nincs rögzítve — most rögzítjük (első elmozduláskor)
+  if (!dragDir) {
+    const dr = Math.sign(r - dragStartCell.r);
+    const dc = Math.sign(c - dragStartCell.c);
+    dragDir = { dr, dc };
+    dragActive = true;
+    // Bejelöljük az első cellát is
+    const startEl = document.querySelector('.sw-cell[data-r="'+dragStartCell.r+'"][data-c="'+dragStartCell.c+'"]');
+    if (startEl) startEl.classList.add('selecting');
+  }
+
+  // Csak az előre rögzített irányban haladhat
+  const expectedR = dragStartCell.r + dragDir.dr * dragCells.length;
+  const expectedC = dragStartCell.c + dragDir.dc * dragCells.length;
+  if (r !== expectedR || c !== expectedC) return;
+
+  // Ha már benne van, ne adjuk hozzá újra
   if (dragCells.some(dc => dc.r === r && dc.c === c)) return;
 
   dragCells.push({ r, c });
@@ -676,9 +702,12 @@ function onDragMove(e) {
 async function endDrag() {
   if (!isDragging) return;
   isDragging = false;
+  dragDir = null;
+  dragStartCell = null;
   document.querySelectorAll('.sw-cell').forEach(cel => cel.classList.remove('selecting'));
 
-  if (dragCells.length < 2) { dragCells = []; return; }
+  if (!dragActive || dragCells.length < 2) { dragCells = []; dragActive = false; return; }
+  dragActive = false;
 
   // Szó összerakása a kijelölt cellákból
   const word = dragCells.map(dc => {

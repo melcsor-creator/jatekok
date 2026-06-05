@@ -212,27 +212,27 @@
     <div class="prize-row">
       <div class="pr-sym">💎</div>
       <div class="pr-name">3× Gyémánt</div>
-      <div class="pr-reward">+50 XP</div>
+      <div class="pr-reward">+50 ⭐</div>
     </div>
     <div class="prize-row">
       <div class="pr-sym">⭐</div>
       <div class="pr-name">3× Csillag</div>
-      <div class="pr-reward">+30 XP</div>
+      <div class="pr-reward">+30 ⭐</div>
     </div>
     <div class="prize-row">
       <div class="pr-sym">🍀</div>
       <div class="pr-name">3× Lóhere</div>
-      <div class="pr-reward">+20 XP</div>
+      <div class="pr-reward">+20 ⭐</div>
     </div>
     <div class="prize-row">
       <div class="pr-sym">🎯</div>
       <div class="pr-name">3× Célpont</div>
-      <div class="pr-reward">+15 XP</div>
+      <div class="pr-reward">+15 ⭐</div>
     </div>
     <div class="prize-row">
       <div class="pr-sym">🔥</div>
       <div class="pr-name">3× Tűz</div>
-      <div class="pr-reward">+10 XP</div>
+      <div class="pr-reward">+10 ⭐</div>
     </div>
     <div class="prize-row" style="opacity:.6;">
       <div class="pr-sym">—</div>
@@ -261,11 +261,11 @@ window.addEventListener('beforeunload', () => db.collection('presence').doc(user
 
 // ── Szimbólumok és díjak ──
 const SYMBOLS = [
-  { sym: '💎', xp: 50, label: 'Gyémánt jackpot!' },
-  { sym: '⭐', xp: 30, label: 'Csillagos nyeremény!' },
-  { sym: '🍀', xp: 20, label: 'Szerencsés lóhere!' },
-  { sym: '🎯', xp: 15, label: 'Célba értél!' },
-  { sym: '🔥', xp: 10, label: 'Tüzes nyeremény!' },
+  { sym: '💎', reward: 50, label: 'Gyémánt jackpot!' },
+  { sym: '⭐', reward: 30, label: 'Csillagos nyeremény!' },
+  { sym: '🍀', reward: 20, label: 'Szerencsés lóhere!' },
+  { sym: '🎯', reward: 15, label: 'Célba értél!' },
+  { sym: '🔥', reward: 10, label: 'Tüzes nyeremény!' },
 ];
 // 9 szimbólum generálása: 1 db 3-mas + random többi
 function generateTicketSymbols() {
@@ -474,14 +474,14 @@ async function showResult() {
       '<div class="result-banner win">' +
         '<div class="rb-icon">🎉</div>' +
         '<div class="rb-title winner-glow">' + winner.label + '</div>' +
-        '<div class="rb-reward">+' + winner.xp + ' XP</div>' +
-        '<div class="rb-sub">Az XP jóváírva az akasztófa profilodon!</div>' +
+        '<div class="rb-reward">+' + winner.reward + ' ⭐ csillag</div>' +
+        '<div class="rb-sub">A csillagok jóváírva a profilodon!</div>' +
       '</div>';
 
-    // XP mentés Firestore-ba
+    // Csillag mentés Firestore-ba
     try {
       await db.collection('users').doc(username).update({
-        xp: firebase.firestore.FieldValue.increment(winner.xp)
+        coins: firebase.firestore.FieldValue.increment(winner.reward)
       });
     } catch(e) {}
 

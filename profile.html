@@ -16,7 +16,6 @@
     <span id="nav-user" style="color:var(--muted);font-size:.9rem;"></span>
     <a href="wheel.html">🎡 Kerék</a>
     <a href="index.html">Főoldal</a>
-    <a href="leaderboard.html">🏆 Ranglista</a>
     <button onclick="openSettings()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;">⚙️ Beállítások</button>
     <button id="nav-logout" style="display:none;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;" onclick="doLogout()">Kilépés</button>
   </nav>
@@ -47,42 +46,12 @@
 
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-value" id="stat-best-score">0</div>
-          <div class="stat-label">Legjobb pontszám</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-best-level">0</div>
-          <div class="stat-label">Legjobb szint</div>
-        </div>
-        <div class="stat-card">
           <div class="stat-value" id="stat-games">0</div>
           <div class="stat-label">Lejátszott meccsek</div>
         </div>
         <div class="stat-card">
           <div class="stat-value" style="color:var(--gold);" id="stat-coins">0 ⭐</div>
           <div class="stat-label">Csillagok</div>
-        </div>
-      </div>
-
-      <!-- XP és rang -->
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:20px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div id="rank-name" style="font-size:1.1rem;font-weight:800;"></div>
-          <div id="rank-xp" style="font-size:.85rem;color:var(--muted);"></div>
-        </div>
-        <div style="background:var(--bg);border-radius:999px;height:12px;overflow:hidden;">
-          <div id="xp-bar" style="height:100%;border-radius:999px;transition:width .6s ease;width:0%;"></div>
-        </div>
-        <div id="rank-next" style="font-size:.78rem;color:var(--muted);margin-top:6px;"></div>
-      </div>
-
-      <div style="margin-bottom:20px;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-          <span style="font-size:.85rem;color:var(--muted);">Legjobb szint</span>
-          <span style="font-size:.85rem;color:var(--muted);" id="progress-label">0 / 10</span>
-        </div>
-        <div style="background:var(--bg2);border-radius:999px;height:10px;overflow:hidden;">
-          <div id="progress-bar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:999px;transition:width .5s ease;width:0%;"></div>
         </div>
       </div>
 
@@ -177,30 +146,8 @@ async function init() {
   document.getElementById('profile-name').textContent = u.name;
   document.getElementById('profile-joined').textContent = 'Csatlakozott: ' + formatDate(u.created);
   document.getElementById('profile-last').textContent = 'Utolsó játék: ' + formatDate(u.lastPlayed);
-  document.getElementById('stat-best-score').textContent = u.bestScore || 0;
-  document.getElementById('stat-best-level').textContent = u.bestLevel || 0;
   document.getElementById('stat-games').textContent = u.gamesPlayed || 0;
   document.getElementById('stat-coins').textContent = (u.coins||0) + ' ⭐';
-
-  // XP és rang (csak Akasztófa)
-  const xp = u.xp || 0;
-  try {
-    const prog = getXpProgress(xp);
-    const rank = prog.current;
-    document.getElementById('rank-name').innerHTML =
-      '<span style="color:' + rank.color + ';">' + rank.icon + ' ' + rank.name + '</span>';
-    document.getElementById('rank-xp').textContent = xp + ' Akasztófa XP';
-    document.getElementById('xp-bar').style.width = prog.pct + '%';
-    document.getElementById('xp-bar').style.background =
-      'linear-gradient(90deg, ' + rank.color + ', var(--accent2))';
-    document.getElementById('rank-next').textContent = prog.next
-      ? 'Következő rang: ' + prog.next.icon + ' ' + prog.next.name + ' — még ' + (prog.needed - prog.have) + ' XP kell'
-      : 'Elérted a maximális rangot!';
-  } catch(e) { console.error('Rang hiba:', e); }
-
-  const pct = Math.min(100, Math.round(((u.bestLevel||0)/10)*100));
-  document.getElementById('progress-bar').style.width = pct + '%';
-  document.getElementById('progress-label').textContent = (u.bestLevel||0) + ' / 10';
 
   document.getElementById('referral-count').textContent = u.referralCount || 0;
   document.getElementById('referral-earned').textContent = ((u.referralCount||0)*10) + ' ⭐';
