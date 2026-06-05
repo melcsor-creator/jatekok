@@ -607,30 +607,41 @@ function wallBounce(b) {
 function collideBalls(a, b) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
+  const distSq = dx * dx + dy * dy;
   const minDist = BALL_R * 2;
 
-  if (dist < minDist && dist > 0.001) {
-    // Separate
-    const overlap = (minDist - dist) / 2;
-    const nx = dx / dist;
-    const ny = dy / dist;
-    a.x -= nx * overlap;
-    a.y -= ny * overlap;
-    b.x += nx * overlap;
-    b.y += ny * overlap;
+  if (distSq >= minDist * minDist || distSq < 0.0001) return;
 
-    // Elastic collision (equal masses)
-    const dvx = b.vx - a.vx;
-    const dvy = b.vy - a.vy;
-    const dot  = dvx * nx + dvy * ny;
-    if (dot < 0) return; // moving apart
+  const dist = Math.sqrt(distSq);
+  const nx = dx / dist;
+  const ny = dy / dist;
 
-    a.vx += dot * nx;
-    a.vy += dot * ny;
-    b.vx -= dot * nx;
-    b.vy -= dot * ny;
-  }
+  // Szétválasztás — teljesen tolja ki egymásból
+  const overlap = (minDist - dist);
+  a.x -= nx * overlap * 0.5;
+  a.y -= ny * overlap * 0.5;
+  b.x += nx * overlap * 0.5;
+  b.y += ny * overlap * 0.5;
+
+  // Rugalmas ütközés (egyenlő tömeg)
+  const dvx = b.vx - a.vx;
+  const dvy = b.vy - a.vy;
+  const dot  = dvx * nx + dvy * ny;
+
+  // Csak akkor csere ha közelednek (dot > 0 = egymás felé mozognak a normál irányban)
+  if (dot <= 0) return;
+
+  a.vx += dot * nx;
+  a.vy += dot * ny;
+  b.vx -= dot * nx;
+  b.vy -= dot * ny;
+
+  // Kis energiaveszteség ütközésnél (nem tökéletesen rugalmas)
+  const restitution = 0.97;
+  a.vx *= restitution;
+  a.vy *= restitution;
+  b.vx *= restitution;
+  b.vy *= restitution;
 }
 
 // ── Turn tracking vars ──
