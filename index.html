@@ -568,6 +568,62 @@ function declineMainInvite() {
   }
 }
 
+// ── Szókereső meghívó figyelése a főmenüben ──
+function watchSwInvitesOnMain(myName) {
+  db.collection('sw_invites')
+    .where('to', '==', myName)
+    .onSnapshot(snap => {
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const inv = change.doc.data();
+          if (inv.status !== 'pending') return;
+          if (Date.now() - (inv.created || 0) > 30000) return;
+          showSwInviteNotif(change.doc.id, inv.from, inv.diff);
+        }
+      });
+    });
+}
+
+let swInviteId = null;
+
+function showSwInviteNotif(inviteId, fromName, diff) {
+  swInviteId = inviteId;
+  const existing = document.getElementById('sw-invite-notif');
+  if (existing) existing.remove();
+
+  const diffLabel = { easy:'Könnyű', medium:'Közepes', hard:'Nehéz' };
+  const notif = document.createElement('div');
+  notif.id = 'sw-invite-notif';
+  notif.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--card);border:2px solid #5c9efc;border-radius:16px;padding:18px 20px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.5);text-align:center;width:90vw;max-width:360px;animation:fadeIn .3s ease;';
+  notif.innerHTML =
+    '<div style="font-size:1.5rem;margin-bottom:6px;">🔍</div>' +
+    '<div style="font-weight:800;font-size:1.05rem;margin-bottom:4px;">' + fromName + ' szókeresőre hív!</div>' +
+    '<div style="color:var(--muted);font-size:.85rem;margin-bottom:14px;">Nehézség: ' + (diffLabel[diff]||diff) + '</div>' +
+    '<div style="display:flex;gap:10px;justify-content:center;">' +
+      '<button class="btn btn-primary btn-sm" onclick="acceptSwInviteMain()">Elfogad</button>' +
+      '<button class="btn btn-outline btn-sm" onclick="declineSwInviteMain()">Elutasít</button>' +
+    '</div>';
+  document.body.appendChild(notif);
+  setTimeout(() => { if (document.getElementById('sw-invite-notif')) declineSwInviteMain(); }, 30000);
+}
+
+async function acceptSwInviteMain() {
+  const notif = document.getElementById('sw-invite-notif');
+  if (notif) notif.remove();
+  if (!swInviteId) return;
+  // Átirányítás a szókeresőbe ahol elfogadják
+  window.location.href = 'szokereső.html?inviteId=' + swInviteId;
+}
+
+function declineSwInviteMain() {
+  const notif = document.getElementById('sw-invite-notif');
+  if (notif) notif.remove();
+  if (swInviteId) {
+    db.collection('sw_invites').doc(swInviteId).update({ status: 'declined' }).catch(()=>{});
+    swInviteId = null;
+  }
+}
+
 // ── Presence — főmenüben is online ──
 function setPresence(name) {
   db.collection('presence').doc(name).set({
@@ -617,8 +673,9 @@ async function init() {  const name = getSession();
         // Oldal elhagyásakor offline
         window.addEventListener('beforeunload', () => clearPresence(u.name));
         window.addEventListener('pagehide', () => clearPresence(u.name));
-        // Meghívók figyelése a főmenüben
+        // Meghívók figyelése a főmenüben (páros játék + szókereső)
         watchInvitesOnMain(u.name);
+        watchSwInvitesOnMain(u.name);
         loadOnlinePlayers();
         return;
       }

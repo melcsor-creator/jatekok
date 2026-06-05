@@ -36,17 +36,17 @@
     .sw-score-item .lbl { font-size:.72rem; color:var(--muted); }
 
     /* Rács */
-    .grid-container { overflow-x:auto; margin-bottom:16px; touch-action:none; user-select:none; }
-    .sw-grid { display:inline-grid; gap:3px; background:var(--bg2); padding:10px; border-radius:var(--radius); border:1px solid var(--border); }
+    .grid-container { overflow-x:auto; margin-bottom:16px; touch-action:none; user-select:none; width:100%; }
+    .sw-grid { display:inline-grid; gap:4px; background:var(--bg2); padding:12px; border-radius:var(--radius); border:1px solid var(--border); width:100%; box-sizing:border-box; }
     .sw-cell {
-      width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+      width:100%; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
       font-size:1rem; font-weight:800; border-radius:6px; cursor:pointer;
       background:var(--card); color:var(--text); border:1px solid var(--border);
       transition:background .1s, color .1s;
     }
-    @media(max-width:540px) {
-      .sw-cell { width:min(9vw, 36px); height:min(9vw, 36px); font-size:min(3.5vw, 1rem); border-radius:4px; }
-      .sw-grid { gap:2px; padding:6px; }
+    @media(max-width:600px) {
+      .sw-grid { gap:3px; padding:8px; }
+      .sw-cell { font-size:.9rem; }
     }
     .sw-cell.selecting { background:rgba(124,92,252,0.35); color:#fff; border-color:var(--accent); }
     .sw-cell.found-me { background:rgba(92,252,142,0.25); color:var(--green); border-color:var(--green); }
@@ -490,7 +490,7 @@ function joinRoom(roomId, oppName) {
 // ── Rács renderelés ──
 function renderGrid(flatGrid, foundWords) {
   const container = document.getElementById('sw-grid');
-  container.style.gridTemplateColumns = 'repeat(' + gridSize + ', 36px)';
+  container.style.gridTemplateColumns = 'repeat(' + gridSize + ', 1fr)';
 
   // Melyik cellák vannak megtalálva?
   const foundCells = {}; // "r_c" -> playerName
@@ -718,6 +718,20 @@ function backToLobby() {
 
 loadOnlinePlayers();
 watchInvites();
+
+// Ha URL-ben van inviteId (főmenüből elfogadott meghívó)
+const urlP = new URLSearchParams(window.location.search);
+const urlInviteId = urlP.get('inviteId');
+if (urlInviteId) {
+  currentInviteId = urlInviteId;
+  setTimeout(async () => {
+    const invSnap = await db.collection('sw_invites').doc(urlInviteId).get();
+    const inv = invSnap.data();
+    if (inv && inv.status === 'pending') {
+      showInviteNotif(urlInviteId, inv.from, inv.diff);
+    }
+  }, 800);
+}
 </script>
 </body>
 </html>
