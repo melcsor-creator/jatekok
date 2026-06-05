@@ -70,6 +70,40 @@
     }
     .mode-btn:hover { background: rgba(124,92,252,0.28); transform: translateY(-3px); }
 
+    /* ── KÖRVÁLTÁS TOAST ── */
+    #turn-toast {
+      position: fixed;
+      top: 54px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(13,13,26,0.96);
+      border: 2px solid #7c5cfc;
+      border-radius: 14px;
+      padding: 10px 24px;
+      text-align: center;
+      z-index: 150;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .25s ease, transform .25s ease;
+      white-space: nowrap;
+    }
+    #turn-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    #turn-toast .tt-name {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #fff;
+    }
+    #turn-toast .tt-sub {
+      font-size: .75rem;
+      color: #8888aa;
+      margin-top: 2px;
+    }
+    #turn-toast.my-turn { border-color: #5cfc8e; }
+    #turn-toast.my-turn .tt-name { color: #5cfc8e; }
+
     /* ── HUD BAR ── */
     #hud {
       position: fixed;
@@ -203,6 +237,12 @@
 <body>
 
 <a href="index.html" id="back-btn">← Vissza</a>
+
+<!-- KÖRVÁLTÁS TOAST -->
+<div id="turn-toast">
+  <div class="tt-name" id="tt-name">–</div>
+  <div class="tt-sub" id="tt-sub">köre</div>
+</div>
 
 <!-- MODE SELECTION -->
 <div id="mode-screen">
@@ -347,16 +387,30 @@ function setupCanvas() {
   canvas = document.getElementById('game-canvas');
   ctx    = canvas.getContext('2d');
 
-  const hudH = 44;
+  const hudH   = 44;
   const availW = window.innerWidth;
   const availH = window.innerHeight - hudH;
+  const portrait = availH > availW; // portrait mód = telefon felállítva
 
-  // Table proportional: width : height = ~1.82 (standard pool table)
-  let tblW = Math.min(availW, 700);
-  let tblH = Math.round(tblW * 0.55);
-  if (tblH > availH - 20) {
-    tblH = availH - 20;
-    tblW = Math.round(tblH / 0.55);
+  let tblW, tblH;
+
+  if (portrait) {
+    // Portrait: az asztal álló — magasabb mint széles
+    // Arány: 1 : 1.82 (szélesség : magasság)
+    tblW = Math.min(availW - 8, 420);
+    tblH = Math.round(tblW * 1.82);
+    if (tblH > availH - 10) {
+      tblH = availH - 10;
+      tblW = Math.round(tblH / 1.82);
+    }
+  } else {
+    // Landscape: klasszikus fekvő arány
+    tblW = Math.min(availW, 700);
+    tblH = Math.round(tblW * 0.55);
+    if (tblH > availH - 20) {
+      tblH = availH - 20;
+      tblW = Math.round(tblH / 0.55);
+    }
   }
 
   RAIL     = Math.round(tblW * 0.038);
@@ -409,42 +463,71 @@ function restartGame() {
 
 function setupPockets() {
   pockets = [];
-  const cx = TX + TW / 2;
-  // corner pockets
+  const portrait = canvas.height > canvas.width;
   const off = POCKET_R * 0.5;
-  pockets.push({ x: TX + off,     y: TY + off });
+  const cx  = TX + TW / 2;
+  const cy  = TX + TH / 2;
+
+  // 4 sarok pocket
+  pockets.push({ x: TX + off,      y: TY + off });
   pockets.push({ x: TX + TW - off, y: TY + off });
-  pockets.push({ x: TX + off,     y: TY + TH - off });
+  pockets.push({ x: TX + off,      y: TY + TH - off });
   pockets.push({ x: TX + TW - off, y: TY + TH - off });
-  // middle side pockets
-  pockets.push({ x: cx, y: TY - off * 0.3 });
-  pockets.push({ x: cx, y: TY + TH + off * 0.3 });
+
+  if (portrait) {
+    // Portrait: középső pocketek BAL és JOBB oldalon (vízszintesen középen)
+    pockets.push({ x: TX - off * 0.3,      y: TY + TH / 2 });
+    pockets.push({ x: TX + TW + off * 0.3, y: TY + TH / 2 });
+  } else {
+    // Landscape: középső pocketek FELSŐ és ALSÓ oldalon
+    pockets.push({ x: cx, y: TY - off * 0.3 });
+    pockets.push({ x: cx, y: TY + TH + off * 0.3 });
+  }
 }
 
 function rackBalls() {
   balls = [];
 
-  // Cue ball — left quarter
-  const cueX = TX + TW * 0.25;
-  const cueY = TY + TH / 2;
-  balls.push(makeBall(0, cueX, cueY));
-
-  // Rack triangle — right side, apex at 3/4
-  const apexX = TX + TW * 0.75;
-  const apexY = TY + TH / 2;
-  const spacing = BALL_R * 2.05;
+  const portrait  = canvas.height > canvas.width;
+  const spacing   = BALL_R * 2.05;
   const sqrt3half = Math.sqrt(3) / 2;
-
-  // Rack order (rows front to back): 1 | 2,3 | 4,8,5 | 6,10,11,7 | 12,13,14,15,9
-  // Standard 8-ball rack positions
   const rackOrder = [1, 2, 9, 3, 8, 11, 4, 14, 13, 5, 6, 10, 15, 7, 12];
-  let idx = 0;
-  for (let row = 0; row < 5; row++) {
-    for (let col = 0; col <= row; col++) {
-      const bx = apexX + row * spacing * sqrt3half;
-      const by = apexY + (col - row / 2) * spacing;
-      const num = rackOrder[idx++];
-      balls.push(makeBall(num, bx, by));
+
+  if (portrait) {
+    // Portrait: cue ball felül, triangle alul
+    const cueX = TX + TW / 2;
+    const cueY = TY + TH * 0.25;
+    balls.push(makeBall(0, cueX, cueY));
+
+    // Triangle apex alul (75%-on)
+    const apexX = TX + TW / 2;
+    const apexY = TY + TH * 0.72;
+    let idx = 0;
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col <= row; col++) {
+        // Portrait: triangle felfelé épül (row = lefelé irány, de fordítva)
+        const bx = apexX + (col - row / 2) * spacing;
+        const by = apexY - row * spacing * sqrt3half;
+        const num = rackOrder[idx++];
+        balls.push(makeBall(num, bx, by));
+      }
+    }
+  } else {
+    // Landscape: eredeti elrendezés
+    const cueX = TX + TW * 0.25;
+    const cueY = TY + TH / 2;
+    balls.push(makeBall(0, cueX, cueY));
+
+    const apexX = TX + TW * 0.75;
+    const apexY = TY + TH / 2;
+    let idx = 0;
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col <= row; col++) {
+        const bx = apexX + row * spacing * sqrt3half;
+        const by = apexY + (col - row / 2) * spacing;
+        const num = rackOrder[idx++];
+        balls.push(makeBall(num, bx, by));
+      }
     }
   }
 }
@@ -585,14 +668,14 @@ function onTurnEnd() {
   if (scratch) {
     respawnCueBall();
     switchTurn();
-    updateHUD();
+    updateHUD(true);
     return;
   }
 
   if (potted.length === 0) {
     // No pot → switch turn
     switchTurn();
-    updateHUD();
+    updateHUD(true);
     return;
   }
 
@@ -624,7 +707,7 @@ function onTurnEnd() {
   }
   // else: keep same turn (extra shot)
 
-  updateHUD();
+  updateHUD(true);
 }
 
 function handleEightPotted(scratch) {
@@ -689,11 +772,37 @@ function allBallsStopped() {
 //  HUD UPDATE
 // ══════════════════════════════════════════════
 
-function updateHUD() {
+let toastTimer = null;
+
+function showTurnToast(showIt) {
+  if (!showIt) return;
+  const toast    = document.getElementById('turn-toast');
+  const nameEl   = document.getElementById('tt-name');
+  const subEl    = document.getElementById('tt-sub');
+  const myName   = localStorage.getItem('doorpuzzle_session') || playerNames[0];
+  const active   = playerNames[currentTurn];
+  const isMe     = active === myName || currentTurn === 0;
+
+  nameEl.textContent = active;
+  if (gameMode === 1 && currentTurn === 1) {
+    subEl.textContent = 'gondolkodik...';
+  } else if (isMe) {
+    subEl.textContent = '🎱 A Te köröd!';
+  } else {
+    subEl.textContent = 'köre következik';
+  }
+
+  toast.className = 'show' + (isMe ? ' my-turn' : '');
+
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.className = ''; }, 2200);
+}
+
+function updateHUD(showToast) {
   document.getElementById('p1-name').textContent = playerNames[0];
   document.getElementById('p2-name').textContent = playerNames[1];
 
-  // Turn
+  // Turn label
   document.getElementById('turn-label').textContent =
     (currentTurn === 0 ? playerNames[0] : playerNames[1]) + ' köre';
 
@@ -709,6 +818,9 @@ function updateHUD() {
   // Highlight active player
   document.getElementById('p1-section').style.opacity = currentTurn === 0 ? '1' : '0.45';
   document.getElementById('p2-section').style.opacity = currentTurn === 1 ? '1' : '0.45';
+
+  // Toast
+  if (showToast) showTurnToast(true);
 }
 
 function renderBallIndicators(playerIdx, container, from, to) {
@@ -1095,7 +1207,7 @@ function gameLoop() {
       if (!stillMoving) {
         ballsMoving = false;
         onTurnEnd();
-        updateHUD();
+        updateHUD(true);
         // If AI's turn, trigger AI
         if (!gameOver && gameMode === 1 && currentTurn === 1) {
           triggerAI();
