@@ -610,7 +610,6 @@ function updatePhysics() {
   for (let i = 0; i < balls.length; i++) {
     const b = balls[i];
     if (b.potted) continue;
-
     const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
     if (speed > STOP_THRESH) {
       anyMoving = true;
@@ -618,8 +617,6 @@ function updatePhysics() {
       b.vy *= FRICTION;
       b.x  += b.vx;
       b.y  += b.vy;
-
-      // Wall bounce
       wallBounce(b);
     } else {
       b.vx = 0;
@@ -627,18 +624,18 @@ function updatePhysics() {
     }
   }
 
-  // Ball-ball collisions
-  for (let i = 0; i < balls.length; i++) {
-    for (let j = i + 1; j < balls.length; j++) {
-      const a = balls[i], bb = balls[j];
-      if (a.potted || bb.potted) continue;
-      collideBalls(a, bb);
+  // Ütközések — több iteráció hogy ne ragadjanak
+  for (let iter = 0; iter < 3; iter++) {
+    for (let i = 0; i < balls.length; i++) {
+      for (let j = i + 1; j < balls.length; j++) {
+        const a = balls[i], bb = balls[j];
+        if (a.potted || bb.potted) continue;
+        collideBalls(a, bb);
+      }
     }
   }
 
-  // Pocket detection (after movement)
   checkPockets();
-
   return anyMoving;
 }
 
@@ -666,32 +663,23 @@ function collideBalls(a, b) {
   const nx = dx / dist;
   const ny = dy / dist;
 
-  // Szétválasztás — teljesen tolja ki egymásból
-  const overlap = (minDist - dist);
-  a.x -= nx * overlap * 0.5;
-  a.y -= ny * overlap * 0.5;
-  b.x += nx * overlap * 0.5;
-  b.y += ny * overlap * 0.5;
+  // Teljes szétválasztás
+  const overlap = minDist - dist;
+  a.x -= nx * overlap * 0.51;
+  a.y -= ny * overlap * 0.51;
+  b.x += nx * overlap * 0.51;
+  b.y += ny * overlap * 0.51;
 
-  // Rugalmas ütközés (egyenlő tömeg)
+  // Sebesség csere csak ha közelednek
   const dvx = b.vx - a.vx;
   const dvy = b.vy - a.vy;
   const dot  = dvx * nx + dvy * ny;
-
-  // Csak akkor csere ha közelednek (dot > 0 = egymás felé mozognak a normál irányban)
   if (dot <= 0) return;
 
   a.vx += dot * nx;
   a.vy += dot * ny;
   b.vx -= dot * nx;
   b.vy -= dot * ny;
-
-  // Kis energiaveszteség ütközésnél (nem tökéletesen rugalmas)
-  const restitution = 0.97;
-  a.vx *= restitution;
-  a.vy *= restitution;
-  b.vx *= restitution;
-  b.vy *= restitution;
 }
 
 // ── Turn tracking vars ──
@@ -919,9 +907,12 @@ function updateHUD(showToast) {
   document.getElementById('turn-label').textContent =
     (currentTurn === 0 ? playerNames[0] : playerNames[1]) + ' köre';
 
-  // Type
+  // Type — melyik golyóval játszik
   const myType = playerTypes[currentTurn];
-  let typeStr = myType === 1 ? '🔵 Tömör' : myType === 2 ? '〰️ Csíkos' : '❓ Nincs típus';
+  let typeStr;
+  if (myType === 1)      typeStr = '🔵 Tömör (1–7)';
+  else if (myType === 2) typeStr = '〰️ Csíkos (9–15)';
+  else                   typeStr = '❓ Első beugrás dönti el';
   document.getElementById('type-label').textContent = typeStr;
 
   // Ball dots
