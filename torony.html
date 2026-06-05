@@ -6,113 +6,77 @@
   <title>Online Játékok – Toronyrakós</title>
   <link rel="stylesheet" href="style.css?v=9" />
   <style>
-    html, body {
-      margin: 0; padding: 0;
-      overflow: hidden;
-      height: 100%;
-      background: #06061a;
-    }
-    .site-header { display: none; }
+    html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#06061a; }
+    .site-header { display:none; }
 
     #ui {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      position: fixed; top:0; left:0; right:0;
+      display: flex; justify-content:space-between; align-items:center;
       padding: 10px 18px;
-      background: rgba(6,6,26,0.9);
+      background: rgba(6,6,26,0.92);
       z-index: 10;
     }
-    #ui .score { font-size: 2rem; font-weight: 900; color: #7c5cfc; }
-    #ui .label { font-size: .7rem; color: rgba(255,255,255,0.35); }
-    #ui .title { font-size: .95rem; font-weight: 800; color: rgba(255,255,255,0.6); }
-    #ui .best  { font-size: 1.1rem; font-weight: 700; color: #f5c842; }
-    #ui a { color: rgba(255,255,255,0.4); font-size: .78rem; text-decoration: none; }
+    #ui .score { font-size:2rem; font-weight:900; color:#7c5cfc; }
+    #ui .lbl   { font-size:.68rem; color:rgba(255,255,255,0.35); }
+    #ui .best  { font-size:1.1rem; font-weight:700; color:#f5c842; }
+    #ui a      { color:rgba(255,255,255,0.4); font-size:.78rem; text-decoration:none; }
 
-    canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      display: block;
-      cursor: pointer;
-    }
+    canvas { position:fixed; top:0; left:0; width:100%; height:100%; display:block; cursor:pointer; }
 
     #hint {
-      position: fixed;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255,255,255,0.55);
-      font-size: 1rem;
-      font-weight: 700;
-      pointer-events: none;
-      animation: bl 1s infinite;
-      white-space: nowrap;
-      z-index: 10;
+      position:fixed; bottom:40px; left:50%; transform:translateX(-50%);
+      color:rgba(255,255,255,0.55); font-size:1rem; font-weight:700;
+      pointer-events:none; animation:bl 1s infinite; white-space:nowrap; z-index:10;
     }
     @keyframes bl { 0%,100%{opacity:1} 50%{opacity:.15} }
 
     #gameover {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.85);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,0.85); z-index:100;
+      align-items:center; justify-content:center;
     }
-    #gameover.show { display: flex; }
+    #gameover.show { display:flex; }
     #go-box {
-      background: #12122a;
-      border: 2px solid #7c5cfc;
-      border-radius: 20px;
-      padding: 36px 32px;
-      text-align: center;
-      width: 88%;
-      max-width: 320px;
-      color: #fff;
+      background:#12122a; border:2px solid #7c5cfc; border-radius:20px;
+      padding:36px 32px; text-align:center; width:88%; max-width:320px; color:#fff;
     }
-    #go-box h2 { font-size: 1.4rem; margin: 0 0 6px; }
-    #go-sc { font-size: 4.5rem; font-weight: 900; color: #7c5cfc; line-height: 1; }
-    #go-sub { color: rgba(255,255,255,0.4); font-size: .85rem; margin: 4px 0 6px; }
-    #go-rec { color: #f5c842; font-weight: 700; font-size: .9rem; margin-bottom: 22px; }
+    #go-box h2 { font-size:1.4rem; margin:0 0 6px; }
+    #go-sc { font-size:4.5rem; font-weight:900; color:#7c5cfc; line-height:1; }
+    #go-sub { color:rgba(255,255,255,0.4); font-size:.85rem; margin:4px 0 6px; }
+    #go-rec { color:#f5c842; font-weight:700; font-size:.9rem; margin-bottom:22px; }
     .go-btn {
-      background: linear-gradient(135deg,#7c5cfc,#c45cfc);
-      color: #fff; border: none; border-radius: 12px;
-      padding: 13px 30px; font-size: 1rem; font-weight: 800;
-      cursor: pointer; font-family: inherit; margin-right: 10px;
+      background:linear-gradient(135deg,#7c5cfc,#c45cfc); color:#fff; border:none;
+      border-radius:12px; padding:13px 30px; font-size:1rem; font-weight:800;
+      cursor:pointer; font-family:inherit; margin-right:10px;
     }
     .go-btn2 {
-      background: transparent; color: rgba(255,255,255,0.5);
-      border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
-      padding: 13px 18px; font-size: .88rem;
-      cursor: pointer; font-family: inherit;
-      text-decoration: none; display: inline-block;
+      background:transparent; color:rgba(255,255,255,0.5);
+      border:1px solid rgba(255,255,255,0.2); border-radius:12px;
+      padding:13px 18px; font-size:.88rem; cursor:pointer;
+      font-family:inherit; text-decoration:none; display:inline-block;
     }
   </style>
 </head>
 <body>
 
-<!-- UI réteg -->
 <div id="ui">
   <div style="text-align:center">
     <div class="score" id="sc">0</div>
-    <div class="label">szint</div>
+    <div class="lbl">szint</div>
   </div>
   <div style="text-align:center">
-    <div class="title">🏗️ Torony</div>
+    <div style="font-size:.9rem;font-weight:800;color:rgba(255,255,255,0.6)">🏗️ Torony</div>
     <a href="index.html">← Főoldal</a>
   </div>
   <div style="text-align:center">
     <div class="best" id="bs">0</div>
-    <div class="label">rekord</div>
+    <div class="lbl">rekord</div>
   </div>
 </div>
 
 <canvas id="c"></canvas>
 <div id="hint">👆 Koppints a lerakáshoz!</div>
 
-<!-- Game over -->
 <div id="gameover">
   <div id="go-box">
     <div style="font-size:3rem;margin-bottom:8px;">🏗️</div>
@@ -127,26 +91,20 @@
 
 <script src="firebase.js"></script>
 <script>
-// ── Setup ──
 const cv  = document.getElementById('c');
 const ctx = cv.getContext('2d');
 const BKEY = 'twrb_' + (localStorage.getItem('doorpuzzle_session') || 'x');
 let best = +localStorage.getItem(BKEY) || 0;
 document.getElementById('bs').textContent = best;
 
-function resize() {
-  cv.width  = window.innerWidth;
-  cv.height = window.innerHeight;
-}
+function resize() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
 resize();
 window.addEventListener('resize', () => { resize(); if (!over) start(); });
 
 // ── Konstansok ──
-const BH = 34;   // blokk magassága
-const COLS = [
-  '#7c5cfc','#c45cfc','#fc5c5c','#5cfc8e',
-  '#f5c842','#5c9efc','#fc9e5c','#5cfcdc'
-];
+const SZ   = 52;    // kocka mérete (szélesség = magasság)
+const COLS  = ['#7c5cfc','#c45cfc','#fc5c5c','#5cfc8e','#f5c842','#5c9efc','#fc9e5c','#5cfcdc'];
+const HUDY  = 56;   // HUD magassága px (ne takarja a kockákat)
 
 // ── Állapot ──
 let stacks, mov, score, over, raf, scrollOff;
@@ -155,9 +113,9 @@ function start() {
   cancelAnimationFrame(raf);
   resize();
 
-  const bw = Math.round(cv.width * 0.52);
-  const bx = Math.round((cv.width - bw) / 2);
-  stacks    = [{ x: bx, w: bw, c: COLS[0] }];
+  // Alap kocka középen, legalul
+  const bx = Math.round((cv.width - SZ) / 2);
+  stacks    = [{ x: bx, w: SZ, c: '#3d2d8c' }];
   score     = 0;
   over      = false;
   scrollOff = 0;
@@ -171,16 +129,14 @@ function start() {
 }
 
 function spawnMov() {
-  const last = stacks[stacks.length - 1];
-  const spd  = Math.min(2.5 + score * 0.14, 12);
+  const spd = Math.min(2.5 + score * 0.18, 13);
   const col  = COLS[stacks.length % COLS.length];
-  mov = { x: -last.w, w: last.w, c: col, d: 1, s: spd };
+  // A mozgó kocka mindig SZ széles és SZ magas
+  mov = { x: -SZ, w: SZ, c: col, d: 1, s: spd };
 }
 
-// ── Loop ──
 function tick() {
   if (over) return;
-  // Mozgás
   mov.x += mov.d * mov.s;
   if (mov.x + mov.w >= cv.width) { mov.x = cv.width - mov.w; mov.d = -1; }
   if (mov.x <= 0)                { mov.x = 0;                mov.d =  1; }
@@ -194,34 +150,31 @@ function drop() {
   document.getElementById('hint').style.display = 'none';
 
   const last = stacks[stacks.length - 1];
-  const ol = Math.max(mov.x, last.x);
-  const or = Math.min(mov.x + mov.w, last.x + last.w);
-  const ov = or - ol;
+  const ol   = Math.max(mov.x, last.x);
+  const or_  = Math.min(mov.x + mov.w, last.x + last.w);
+  const ov   = or_ - ol;
 
-  if (ov <= 1) { gameOver(); return; }
+  if (ov <= 1) { endGame(); return; }
 
+  // Lerakott rész: szélessége = ov, de MAGASSÁGA mindig SZ (kocka marad)
   stacks.push({ x: ol, w: ov, c: mov.c });
   score++;
   document.getElementById('sc').textContent = score;
 
-  // Scroll: ha torony teteje a canvas 38%-ánál magasabb, tolja le
+  // Scroll: ha torony teteje a képernyő felső 40%-ába ér
   const topY = getY(stacks.length - 1);
-  if (topY < cv.height * 0.38) {
-    scrollOff += cv.height * 0.26;
+  if (topY < cv.height * 0.40) {
+    scrollOff += cv.height * 0.28;
   }
 
   spawnMov();
 }
 
-// ── Y pozíció ──
-// idx=0 legalul, felfelé épül
-// scrollOff növekedésével az egész torony felfelé csúszik a képernyőn
+// ── Y pozíció: idx=0 alul, felfelé épül ──
 function getY(idx) {
-  return cv.height - BH * (idx + 1) + scrollOff;
+  return cv.height - SZ * (idx + 1) + scrollOff;
 }
-function movY() {
-  return getY(stacks.length);  // a legfelső stack felett
-}
+function movY() { return getY(stacks.length); }
 
 // ── Rajzolás ──
 function draw() {
@@ -235,71 +188,83 @@ function draw() {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, cv.width, cv.height);
 
-  // Háttér rács (halvány)
-  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+  // Halvány rács
+  ctx.strokeStyle = 'rgba(255,255,255,0.022)';
   ctx.lineWidth = 1;
   for (let x = 0; x < cv.width; x += 40) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cv.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, HUDY); ctx.lineTo(x, cv.height); ctx.stroke();
   }
 
-  // Lerakott blokkok
+  // Torony közepe — halvány vezető vonal
+  const last = stacks[stacks.length - 1];
+  const cx   = last.x + last.w / 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 8]);
+  ctx.beginPath(); ctx.moveTo(cx, HUDY); ctx.lineTo(cx, cv.height); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Lerakott kockák
   stacks.forEach((b, i) => {
     const y = getY(i);
-    if (y > cv.height + 2 || y + BH < 0) return;
-    drawBlock(b.x, y, b.w, BH, b.c, i === 0);
+    if (y > cv.height + 2 || y + SZ < HUDY) return;
+    drawBlock(b.x, y, b.w, SZ, b.c, i === 0);
   });
 
-  // Mozgó blokk
-  drawBlock(mov.x, movY(), mov.w, BH, mov.c, false);
+  // Mozgó kocka
+  drawBlock(mov.x, movY(), SZ, SZ, mov.c, false);
 
-  // Irányzó
-  const last = stacks[stacks.length - 1];
-  const ly   = getY(stacks.length - 1);
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  // Irányzó — legfelső kocka szélei
+  const ly = getY(stacks.length - 1);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
   ctx.lineWidth = 1;
-  ctx.setLineDash([4, 6]);
+  ctx.setLineDash([3, 5]);
   ctx.beginPath();
-  ctx.moveTo(last.x, 0);           ctx.lineTo(last.x, ly);
-  ctx.moveTo(last.x + last.w, 0);  ctx.lineTo(last.x + last.w, ly);
+  ctx.moveTo(last.x,          HUDY); ctx.lineTo(last.x,          ly);
+  ctx.moveTo(last.x + last.w, HUDY); ctx.lineTo(last.x + last.w, ly);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // HUD háttér újrafestés (a canvas rárajzolt a tetejére)
-  // A UI div fix position, szóval ez nem gond
+  // Nagy halvány szám
+  if (score > 0) {
+    ctx.save();
+    ctx.font = `bold ${Math.min(160, cv.width * 0.4)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(124,92,252,0.055)';
+    ctx.fillText(score, cv.width / 2, cv.height / 2);
+    ctx.restore();
+  }
 }
 
 function drawBlock(x, y, w, h, col, isBase) {
   // Árnyék
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  roundFill(x + 5, y + 6, w, h, 7);
-
+  rFill(x + 4, y + 5, w, h, 7);
   // Fő szín
-  ctx.fillStyle = isBase ? '#3d2d8c' : col;
-  roundFill(x, y, w, h, 7);
-
-  // Felső fény
-  const shine = ctx.createLinearGradient(x, y, x, y + h);
-  shine.addColorStop(0,   'rgba(255,255,255,0.30)');
-  shine.addColorStop(0.45,'rgba(255,255,255,0.05)');
-  shine.addColorStop(1,   'rgba(0,0,0,0.15)');
-  ctx.fillStyle = shine;
-  roundFill(x, y, w, h, 7);
-
+  ctx.fillStyle = col;
+  rFill(x, y, w, h, 7);
+  // Fény
+  const sh = ctx.createLinearGradient(x, y, x, y + h);
+  sh.addColorStop(0,    'rgba(255,255,255,0.32)');
+  sh.addColorStop(0.45, 'rgba(255,255,255,0.05)');
+  sh.addColorStop(1,    'rgba(0,0,0,0.12)');
+  ctx.fillStyle = sh;
+  rFill(x, y, w, h, 7);
   // Jobb oldal árnyék
-  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
   ctx.fillRect(x + w - 5, y + 4, 5, h - 4);
-
   // Alap felirat
-  if (isBase && w > 55) {
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = 'bold 11px sans-serif';
+  if (isBase) {
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('START', x + w / 2, y + h / 2);
+    ctx.fillText('⬇', x + w / 2, y + h / 2);
   }
 }
 
-function roundFill(x, y, w, h, r) {
+function rFill(x, y, w, h, r) {
   r = Math.min(r, w/2, h/2);
   ctx.beginPath();
   ctx.moveTo(x+r, y);
@@ -312,11 +277,10 @@ function roundFill(x, y, w, h, r) {
 }
 
 // ── Game Over ──
-function gameOver() {
+function endGame() {
   over = true;
   cancelAnimationFrame(raf);
   draw();
-
   if (score > best) {
     best = score;
     localStorage.setItem(BKEY, best);
@@ -326,25 +290,21 @@ function gameOver() {
       db.collection('users').doc(u).update({ towerBest: best }).catch(()=>{});
     }
   }
-
-  document.getElementById('go-sc').textContent  = score;
-  document.getElementById('go-rec').textContent  =
+  document.getElementById('go-sc').textContent = score;
+  document.getElementById('go-rec').textContent =
     score > 0 && score >= best ? '🏆 Új rekord!' : 'Rekord: ' + best + ' szint';
-  setTimeout(() => document.getElementById('gameover').classList.add('show'), 400);
+  setTimeout(() => document.getElementById('gameover').classList.add('show'), 350);
 }
 
+function start_wrap() { start(); }
+
 // ── Input ──
-// Egyszerű: bárhova koppintás / kattintás = drop
-document.addEventListener('pointerdown', function(e) {
-  // Ne aktiválódjon ha a game over boxon kattintott
+document.addEventListener('pointerdown', e => {
   if (e.target.closest('#gameover')) return;
   drop();
 });
-document.addEventListener('keydown', function(e) {
-  if (e.code === 'Space' || e.code === 'ArrowDown') {
-    e.preventDefault();
-    drop();
-  }
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowDown') { e.preventDefault(); drop(); }
 });
 
 // ── Indítás ──
