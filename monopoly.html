@@ -34,8 +34,31 @@
     .ptok{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;color:#fff;flex-shrink:0;}
     .pmoney{font-weight:700;color:#f5c842;font-size:.82rem;}
 
-    #board-scroll{flex:1;overflow:auto;padding:12px;display:flex;align-items:flex-start;justify-content:center;}
-    #board{width:700px;height:700px;flex-shrink:0;display:grid;grid-template-columns:80px repeat(6,1fr) 80px;grid-template-rows:80px repeat(6,1fr) 80px;border:3px solid #3a3a6e;border-radius:14px;overflow:hidden;background:#16163a;box-shadow:0 0 40px rgba(124,92,252,.2);}
+    #board-scroll{
+      flex:1;
+      overflow:hidden;
+      padding:8px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    #board-outer {
+      /* JS állítja be a transform: scale()-t */
+      transform-origin: top center;
+    }
+    #board{
+      width:700px;
+      height:700px;
+      flex-shrink:0;
+      display:grid;
+      grid-template-columns:80px repeat(6,1fr) 80px;
+      grid-template-rows:80px repeat(6,1fr) 80px;
+      border:3px solid #3a3a6e;
+      border-radius:14px;
+      overflow:hidden;
+      background:#16163a;
+      box-shadow:0 0 40px rgba(124,92,252,.2);
+    }
     .sp{border:1px solid #2e2e5e;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 2px;position:relative;overflow:hidden;transition:filter .15s;}
     .sp:hover{filter:brightness(1.2);}
     .sp.active-sp{outline:3px solid #f5c842;outline-offset:-3px;z-index:5;}
@@ -125,16 +148,18 @@
   </div>
   <div id="players-bar"></div>
   <div id="board-scroll">
-    <div id="board">
-      <div id="bc">
-        <div id="bc-title">🏙️ MINI MONOPOLY</div>
-        <div id="dice-row">
-          <div class="die" id="die1"></div>
-          <div class="die" id="die2"></div>
+    <div id="board-outer">
+      <div id="board">
+        <div id="bc">
+          <div id="bc-title">🏙️ MINI MONOPOLY</div>
+          <div id="dice-row">
+            <div class="die" id="die1"></div>
+            <div class="die" id="die2"></div>
+          </div>
+          <button id="roll-btn" onclick="rollDice()">🎲 Dobás!</button>
+          <div id="my-turn-hint"></div>
+          <div id="log-box"></div>
         </div>
-        <button id="roll-btn" onclick="rollDice()">🎲 Dobás!</button>
-        <div id="my-turn-hint"></div>
-        <div id="log-box"></div>
       </div>
     </div>
   </div>
@@ -249,8 +274,40 @@ let acceptingInv=false;
 function setPresence(){
   db.collection('presence').doc(username).set({name:username,online:true,where:'monopoly',since:Date.now()}).catch(()=>{});
 }
-setPresence();
-setInterval(setPresence,20000);
+
+window.addEventListener('load', () => {
+  setPresence();
+  setInterval(setPresence,20000);
+  initInviteListener();
+  scaleBoard();
+
+  const urlParams=new URLSearchParams(window.location.search);
+  const urlInviteId=urlParams.get('inviteId');
+  if(urlInviteId){
+    currentInviteId=urlInviteId;
+    setTimeout(async()=>{
+      const snap=await db.collection('mono_invites').doc(urlInviteId).get();
+      const inv=snap.data();
+      if(inv&&inv.status==='pending') showInviteNotif(urlInviteId,inv.from);
+    },500);
+  }
+});
+window.addEventListener('resize', scaleBoard);
+
+function scaleBoard(){
+  const scroll = document.getElementById('board-scroll');
+  const outer  = document.getElementById('board-outer');
+  if(!scroll || !outer) return;
+  const availW = scroll.clientWidth  - 16;
+  const availH = scroll.clientHeight - 16;
+  const boardSize = 700;
+  const scale = Math.min(availW / boardSize, availH / boardSize, 1);
+  outer.style.transform = 'scale(' + scale + ')';
+  outer.style.width  = boardSize + 'px';
+  outer.style.height = boardSize + 'px';
+  // Shrink the scroll container to avoid extra space
+  scroll.style.height = Math.round(boardSize * scale + 16) + 'px';
+}
 window.addEventListener('beforeunload',()=>db.collection('presence').doc(username).delete().catch(()=>{}));
 
 // URL invite check
@@ -331,15 +388,38 @@ function cancelInvite(){
 }
 
 // ── MEGHÍVÓ FOGADÁS ──
-db.collection('mono_invites').where('to','==',username).onSnapshot(snap=>{
-  snap.docChanges().forEach(ch=>{
-    if(ch.type==='added'){
-      const inv=ch.doc.data();
-      if(inv.status!=='pending')return;
-      if(Date.now()-(inv.created||0)>30000)return;
-      showInviteNotif(ch.doc.id,inv.from);
-    }
+function initInviteListener() {
+  db.collection('mono_invites').where('to','==',username).onSnapshot(snap=>{
+    snap.docChanges().forEach(ch=>{
+      if(ch.type==='added'){
+        const inv=ch.doc.data();
+        if(inv.status!=='pending')return;
+        if(Date.now()-(inv.created||0)>30000)return;
+        showInviteNotif(ch.doc.id,inv.from);
+      }
+    });
   });
+}
+
+// Megjegyzés: az összes Firestore hívás csak a firebase.js betöltése UTÁN
+window.addEventListener('load', () => {
+  setPresence();
+  setInterval(setPresence,20000);
+  initInviteListener();
+
+  // URL invite check
+  const urlParams=new URLSearchParams(window.location.search);
+  const urlInviteId=urlParams.get('inviteId');
+  if(urlInviteId){
+    currentInviteId=urlInviteId;
+    setTimeout(async()=>{
+      const snap=await db.collection('mono_invites').doc(urlInviteId).get();
+      const inv=snap.data();
+      if(inv&&inv.status==='pending'){
+        showInviteNotif(urlInviteId,inv.from);
+      }
+    },500);
+  }
 });
 
 function showInviteNotif(invId,fromName){
@@ -399,7 +479,7 @@ function joinRoom(roomId,oppName,myIdx){
   document.getElementById('lobby-screen').style.display='none';
   document.getElementById('game-screen').style.display='flex';
   buildBoard();
-  setTimeout(()=>{const bs=document.getElementById('board-scroll');bs.scrollLeft=(bs.scrollWidth-bs.clientWidth)/2;},100);
+  setTimeout(()=>scaleBoard(),100);
 
   roomUnsub=db.collection('mono_rooms').doc(roomId).onSnapshot(snap=>{
     const room=snap.data();
