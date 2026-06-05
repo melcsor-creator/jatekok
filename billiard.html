@@ -232,6 +232,47 @@
       transition: transform .15s;
     }
     .result-btn:hover { transform: translateY(-2px); }
+
+    /* ── GOLYÓ BEMEGY ÉRTESÍTŐ ── */
+    #potted-notif {
+      position: fixed;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(13,13,26,0.95);
+      border: 2px solid #f5c842;
+      border-radius: 12px;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 150;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .2s, transform .2s;
+      white-space: nowrap;
+    }
+    #potted-notif.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    #potted-notif .pn-ball {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .72rem; font-weight: 900; color: #111;
+      flex-shrink: 0;
+    }
+    #potted-notif .pn-text {
+      font-size: .88rem;
+      font-weight: 700;
+      color: #e8e8f5;
+    }
+    #potted-notif .pn-type {
+      font-size: .75rem;
+      color: #8888aa;
+    }
   </style>
 </head>
 <body>
@@ -277,6 +318,15 @@
 <div id="power-bar-wrap">
   <span id="power-label">Erő</span>
   <div id="power-bar-bg"><div id="power-bar-fill"></div></div>
+</div>
+
+<!-- GOLYÓ BEMEGY ÉRTESÍTŐ -->
+<div id="potted-notif">
+  <div class="pn-ball" id="pn-ball"></div>
+  <div>
+    <div class="pn-text" id="pn-text"></div>
+    <div class="pn-type" id="pn-type"></div>
+  </div>
 </div>
 
 <!-- RESULT -->
@@ -659,6 +709,7 @@ function checkPockets() {
         b.potted = true;
         b.vx = 0; b.vy = 0;
         pottedThisTurn.push(b.num);
+        showPottedNotif(b.num);
         break;
       }
     }
@@ -792,6 +843,49 @@ function allBallsStopped() {
 // ══════════════════════════════════════════════
 
 let toastTimer = null;
+
+let pottedNotifTimer = null;
+
+function showPottedNotif(num) {
+  const notif  = document.getElementById('potted-notif');
+  const ball   = document.getElementById('pn-ball');
+  const text   = document.getElementById('pn-text');
+  const type   = document.getElementById('pn-type');
+  const color  = BALL_COLORS[num];
+
+  if (num === 0) {
+    // Fehér golyó — karambola
+    notif.style.borderColor = '#fc5c5c';
+    ball.style.background   = '#ffffff';
+    ball.style.border       = '2px solid #fc5c5c';
+    ball.textContent        = '⚪';
+    text.textContent        = 'Karambola!';
+    type.textContent        = 'A fehér golyó bement — körváltás';
+  } else if (num === 8) {
+    notif.style.borderColor = '#888';
+    ball.style.background   = '#111111';
+    ball.style.border       = '2px solid #888';
+    ball.textContent        = '8';
+    ball.style.color        = '#fff';
+    text.textContent        = '8-as golyó bement!';
+    type.textContent        = 'Döntő lövés';
+  } else {
+    const isStripe = num >= 9 && num <= 15;
+    notif.style.borderColor = color;
+    ball.style.background   = isStripe
+      ? `linear-gradient(180deg, #eee 30%, ${color} 30%, ${color} 70%, #eee 70%)`
+      : color;
+    ball.style.border       = `2px solid ${color}`;
+    ball.textContent        = num;
+    ball.style.color        = (num === 1 || num === 9) ? '#333' : '#fff';
+    text.textContent        = (isStripe ? 'Csíkos ' : 'Tömör ') + num + '. golyó bement!';
+    type.textContent        = isStripe ? '〰️ Csíkos' : '🔵 Tömör';
+  }
+
+  notif.classList.add('show');
+  if (pottedNotifTimer) clearTimeout(pottedNotifTimer);
+  pottedNotifTimer = setTimeout(() => { notif.classList.remove('show'); }, 2000);
+}
 
 function showTurnToast(showIt) {
   if (!showIt) return;
