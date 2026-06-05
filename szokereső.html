@@ -37,16 +37,21 @@
 
     /* Rács */
     .grid-container { overflow-x:auto; margin-bottom:16px; touch-action:none; user-select:none; width:100%; }
-    .sw-grid { display:inline-grid; gap:4px; background:var(--bg2); padding:12px; border-radius:var(--radius); border:1px solid var(--border); width:100%; box-sizing:border-box; }
+    .sw-grid { display:inline-grid; gap:4px; background:var(--bg2); padding:10px; border-radius:var(--radius); border:1px solid var(--border); width:100%; box-sizing:border-box; }
     .sw-cell {
       width:100%; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
-      font-size:1rem; font-weight:800; border-radius:6px; cursor:pointer;
+      font-size:1.3rem; font-weight:900; border-radius:10px; cursor:pointer;
       background:var(--card); color:var(--text); border:1px solid var(--border);
       transition:background .1s, color .1s;
+      -webkit-tap-highlight-color: transparent;
     }
+    .sw-cell.selecting { background:rgba(124,92,252,0.35); color:#fff; border-color:var(--accent); }
+    .sw-cell.found-me { background:rgba(92,252,142,0.25); color:var(--green); border-color:var(--green); }
+    .sw-cell.found-opp { background:rgba(196,92,252,0.2); color:var(--accent2); border-color:var(--accent2); }
+    .sw-cell.found-both { background:rgba(245,200,66,0.2); color:var(--gold); border-color:var(--gold); }
     @media(max-width:600px) {
-      .sw-grid { gap:3px; padding:8px; }
-      .sw-cell { font-size:.9rem; }
+      .sw-grid { gap:3px; padding:7px; }
+      .sw-cell { font-size:1.15rem; border-radius:8px; }
     }
     .sw-cell.selecting { background:rgba(124,92,252,0.35); color:#fff; border-color:var(--accent); }
     .sw-cell.found-me { background:rgba(92,252,142,0.25); color:var(--green); border-color:var(--green); }
@@ -214,19 +219,41 @@ window.addEventListener('pagehide', () => db.collection('presence').doc(username
 
 // ── Magyar szavak nehézség szerint ──
 const WORD_LISTS = {
-  easy: ['ALMA','KÖRTE','KUTYA','MACSKA','SZÉK','ASZTAL','HÁZ','FA','KÉZ','LÁB',
-         'FEJ','SZEM','EGY','KETTŐ','HÁROM','NÉGY','ÖT','HAT','HÉT','NYOLC',
-         'HOLD','NAP','CÉL','KÉP','TÉR','SÓ','VÍZ','TŰZ','FÖLD','SZÉL',
-         'KÉK','PIROS','ZÖLD','SÁRGA','FEHÉR','FEKETE','NAGY','KIS','JÓ','RÉT'],
-  medium: ['REPÜLŐ','VONAT','FOLYÓ','HEGYSÉG','ERDŐ','MEZŐGAZDASÁG','VILLANYKÖRTE',
-           'SZÁMÍTÓGÉP','BILLENTYŰ','MONITOR','ABLAK','AJTÓ','PADLÓ','MENNYEZET',
-           'ISKOLÁS','TANKÖNYV','FELADAT','MEGOLDÁS','BARÁTSÁG','SZERETET',
-           'VARÁZSLAT','KALANDOR','ÖRÖMTELI','BOLDOGSÁG','TERMÉSZET','ÁLLATVILÁG',
-           'HEGYCSÚCS','VIHARFELHŐ','TENGERJÁRÓ','DZSUNGEL','SIVATAG','JÉGMEZŐ'],
-  hard: ['ELEKTROMOSSÁG','CSILLAGKÖD','MIKROSZKÓP','HIDROSZFÉRA','SZIMFÓNIA',
-         'PARLAMENTARIZMUS','GRAVITÁCIÓ','FOTOSZINTÉZIS','CHROMOSOMA','INTELLIGENCIA',
-         'ARCHITEKTÚRA','CIVILIZÁCIÓ','ÖSSZEFÜGGÉS','KÖVETKEZTETÉS','MEGVALÓSÍTÁS',
-         'SOKFÉLESÉG','KÜLÖNLEGESSÉG','ELLENÁLLÁS','KÉPZELETBELI','FENNTARTHATÓSÁG']
+  easy: [
+    'ALMA','KÖRTE','KUTYA','MACSKA','SZÉK','ASZTAL','HÁZ','FA','KÉZ','LÁB',
+    'FEJ','SZEM','HOLD','NAP','VÍZ','TŰZ','SZÉL','KÉK','PIROS','ZÖLD',
+    'SÁRGA','FEHÉR','FEKETE','NAGY','KIS','JÓ','RÉT','ÉG','FÖL','TÓ',
+    'MÁR','MÉG','ÍGY','ÚGY','EGY','KÉT','SEM','SEM','NEM','VAN',
+    'ÁLL','MÉZ','TÉL','ŐSZ','NYÁR','HÓ','JÉG','LÉG','LÉ','ÉL',
+    'KŐ','TŐ','SZÓ','CSŐ','FÜL','ORR','KAR','ÁGY','BOT','HAD',
+    'HAL','MAD','BAL','JOB','FEL','LE','BE','KI','FI','NŐ',
+    'ÚR','ÚT','ÓRA','NAP','ÉV','HÉT','NAP','EST','REG','DÉL',
+    'ZÁR','NÁD','VÁR','TÁR','SÁR','KÁR','BÁR','MÁR','NÁL','NÁD',
+    'ANYA','APJA','FIÚ','LÁNy','FIÓK','HÁZ','KERT','UDVAR','KAPU','ABLAK'
+  ],
+  medium: [
+    'REPÜLŐ','VONAT','FOLYÓ','ERDŐ','ABLAK','AJTÓ','PADLÓ','ISKOLA','KÖNYV','CERUZA',
+    'BARÁT','SZERETET','BOLDOGSÁG','TERMÉSZET','ÁLLATVILÁG','DZSUNGEL','SIVATAG',
+    'HEGEDŰ','GITÁR','ZONGORA','LABDA','FUTBALL','ÚSZÁS','KERÉKPÁR','MOTORKERÉKPÁR',
+    'KENYÉR','VÍZZEL','TEJJEL','SAJT','HAGYMA','PAPRIKA','PARADICSOM','UBORKA',
+    'SZOBA','KONYHA','FÜRDŐ','ERKÉLY','GARÁZS','PINCE','PADLÁS','KAPU',
+    'JANUÁR','FEBRUÁR','MÁRCIUS','ÁPRILIS','MÁJUS','JÚNIUS','JÚLIUS','AUGUSZTUS',
+    'OROSZLÁN','ELEFÁNT','ZSIRÁF','GEPÁRD','PINGVIN','DELFINKE','TEKNŐS','PAPAGÁJ',
+    'PIROS','NARANCS','CITROM','SZILVA','MEGGY','CSERESZNYE','EPER','MÁLNA',
+    'VILLAMOS','METRÓ','BUSZJEGY','TAXI','HAJÓ','CSÓNAK','VITORLÁS','SÉTÁNY',
+    'KÓRHÁZ','RENDŐRSÉG','TŰZOLTÓSÁG','POLGÁRMESTER','MINISZTER','ELNÖK','TITKÁR'
+  ],
+  hard: [
+    'ELEKTROMOSSÁG','CSILLAGKÖD','MIKROSZKÓP','SZIMFÓNIA','PARLAMENTARIZMUS',
+    'GRAVITÁCIÓ','FOTOSZINTÉZIS','INTELLIGENCIA','ARCHITEKTÚRA','CIVILIZÁCIÓ',
+    'ÖSSZEFÜGGÉS','KÖVETKEZTETÉS','MEGVALÓSÍTÁS','SOKFÉLESÉG','KÜLÖNLEGESSÉG',
+    'ELLENÁLLÁS','FENNTARTHATÓSÁG','HAGYOMÁNYŐRZÉS','TAPASZTALATSZERZÉS',
+    'TERMÉSZETTUDOMÁNYOS','TÁRSADALOMTUDOMÁNYI','GAZDASÁGTÖRTÉNELEM',
+    'KÖZIGAZGATÁSBAN','ALKOTMÁNYBÍRÓSÁG','KÖZTÁRSASÁGI','MINISZTERELNÖK',
+    'HADTÖRTÉNETÍRÁS','IRODALOMTÖRTÉNET','ZENETÖRTÉNELEM','KÉPZŐMŰVÉSZETI',
+    'ASZTROLÓGIAI','METEOROLÓGIAI','GEOLÓGIAILAG','BOTANIKAILAG','ZOOLÓGIAILAG',
+    'PSZICHOLÓGIAI','SZOCIOLÓGIAILAG','ANTROPOLÓGIAI','RÉGÉSZETILEG','PALEONTOLÓGIAI'
+  ]
 };
 
 const DIFF_CONFIG = {
@@ -393,7 +420,12 @@ function declineInvite() {
 
 // ── Szó és rács generálás ──
 function pickWords(diff, count) {
-  const pool = [...WORD_LISTS[diff]].sort(() => Math.random() - 0.5);
+  // Teljesen random keverés minden alkalommal
+  const pool = [...WORD_LISTS[diff]];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
   return pool.slice(0, count);
 }
 
@@ -403,7 +435,8 @@ function buildGrid(size, words) {
   );
   const placed = [];
   const directions = [
-    [0,1],[1,0],[1,1],[1,-1] // jobbra, le, átló jobb-le, átló bal-le
+    [0,1],[1,0],[1,1],[1,-1],   // jobbra, le, átló jobb-le, átló bal-le
+    [0,-1],[-1,0],[-1,-1],[-1,1] // visszafelé irányok
   ];
 
   for (const word of words) {
@@ -578,14 +611,28 @@ function onDragMove(e) {
   if (dragCells.length === 0) return;
 
   const first = dragCells[0];
-  // Ellenőrzöm hogy egyenes-e (vízszintes, függőleges, átló)
-  const dr = Math.sign(r - first.r), dc = Math.sign(c - first.c);
   if (r === first.r && c === first.c) return;
-  if (dr !== 0 && dc !== 0 && Math.abs(r - first.r) !== Math.abs(c - first.c)) return;
 
-  // Újrarajzolja a kijelölést az első celltől az aktuálisig
+  // Irány meghatározása az első és aktuális cella alapján
+  const totalDr = r - first.r;
+  const totalDc = c - first.c;
+
+  // Csak egyenes irány engedélyezett:
+  // vízszintes (dr=0), függőleges (dc=0), vagy pontos átló (|dr|===|dc|)
+  const isHorizontal = totalDr === 0;
+  const isVertical   = totalDc === 0;
+  const isDiagonal   = Math.abs(totalDr) === Math.abs(totalDc);
+
+  if (!isHorizontal && !isVertical && !isDiagonal) {
+    // Nem egyenes — nem frissítjük a kijelölést
+    return;
+  }
+
+  const dr = Math.sign(totalDr);
+  const dc = Math.sign(totalDc);
+  const steps = Math.max(Math.abs(totalDr), Math.abs(totalDc));
+
   const newDrag = [];
-  const steps = Math.max(Math.abs(r - first.r), Math.abs(c - first.c));
   for (let i = 0; i <= steps; i++) {
     newDrag.push({ r: first.r + dr * i, c: first.c + dc * i });
   }
@@ -621,8 +668,10 @@ async function checkWord(word) {
   const fb = document.getElementById('sel-feedback');
   if (word.length < 2) return;
 
-  // Megvan-e a rácsban elrejtett szavak közt?
-  const found = hiddenWords.find(w => w.word === word || w.word === word.split('').reverse().join(''));
+  const reversed = word.split('').reverse().join('');
+
+  // Megvan-e a rácsban elrejtett szavak közt? (előre és visszafelé is)
+  const found = hiddenWords.find(w => w.word === word || w.word === reversed);
   if (!found) {
     fb.textContent = '❌ ' + word + ' — nem rejtett szó';
     fb.style.color = 'var(--red)';
@@ -630,7 +679,7 @@ async function checkWord(word) {
     return;
   }
 
-  const actualWord = found.word;
+  const actualWord = found.word; // az eredeti elrejtett szó
 
   // Már megtalálta valaki?
   const roomSnap = await db.collection('sw_rooms').doc(currentRoomId).get();
