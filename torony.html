@@ -130,9 +130,9 @@ function start() {
 }
 
 function spawnMov() {
-  const spd = Math.min(2.5 + score * 0.18, 13);
+  const last = stacks[stacks.length - 1];
+  const spd  = Math.min(2.5 + score * 0.18, 13);
   const col  = COLS[stacks.length % COLS.length];
-  // A mozgó blokk az utolsó blokk szélességével indul
   mov = { x: -last.w, w: last.w, c: col, d: 1, s: spd };
 }
 
