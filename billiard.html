@@ -301,6 +301,14 @@ const SESSION_KEY = 'doorpuzzle_session';
 const username = localStorage.getItem(SESSION_KEY);
 if (!username) { window.location.href = 'index.html'; }
 
+// Presence
+if (typeof db !== 'undefined') {
+  db.collection('presence').doc(username).set({ name: username, online: true, where: 'biliárd', since: Date.now() }).catch(()=>{});
+  setInterval(() => db.collection('presence').doc(username).set({ name: username, online: true, where: 'biliárd', since: Date.now() }).catch(()=>{}), 20000);
+  window.addEventListener('beforeunload', () => db.collection('presence').doc(username).delete().catch(()=>{}));
+  window.addEventListener('pagehide', () => db.collection('presence').doc(username).delete().catch(()=>{}));
+}
+
 // ══════════════════════════════════════════════
 //  CONSTANTS & CONFIG
 // ══════════════════════════════════════════════
@@ -859,7 +867,6 @@ function onPointerDown(e) {
   const pos = getCanvasPos(e);
   const cue = balls.find(b => b.num === 0);
   if (!cue) return;
-  // Start aiming from anywhere — direction is from cue toward pos, drag back
   aiming     = true;
   aimStart   = pos;
   aimCurrent = pos;
@@ -880,19 +887,20 @@ function onPointerUp(e) {
   const cue = balls.find(b => b.num === 0);
   if (!cue) return;
 
-  const dx = aimStart.x - aimCurrent.x;
-  const dy = aimStart.y - aimCurrent.y;
+  // Irány: aimStart → aimCurrent (oda húzod, arra megy a golyó)
+  const dx = aimCurrent.x - aimStart.x;
+  const dy = aimCurrent.y - aimStart.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
   if (dist < MIN_SHOT_DIST) return;
 
-  const power  = Math.min(dist, MAX_SHOT_DIST) / MAX_SHOT_DIST * MAX_SHOT_POWER;
-  const angle  = Math.atan2(dy, dx); // drag direction = shot direction
+  const power = Math.min(dist, MAX_SHOT_DIST) / MAX_SHOT_DIST * MAX_SHOT_POWER;
+  const angle = Math.atan2(dy, dx);
   cue.vx = Math.cos(angle) * power;
   cue.vy = Math.sin(angle) * power;
 
-  pottedThisTurn   = [];
-  cueHitSomething  = false;
-  ballsMoving      = true;
+  pottedThisTurn  = [];
+  cueHitSomething = false;
+  ballsMoving     = true;
 }
 
 // Touch
@@ -1079,38 +1087,60 @@ function drawAimLine() {
   const cue = balls.find(b => b.num === 0);
   if (!cue || cue.potted) return;
 
-  const dx = aimStart.x - aimCurrent.x;
-  const dy = aimStart.y - aimCurrent.y;
+  // Irány: aimStart → aimCurrent = a golyó iránya
+  const dx   = aimCurrent.x - aimStart.x;
+  const dy   = aimCurrent.y - aimStart.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
   if (dist < 2) return;
 
-  const nx = dx / dist;
-  const ny = dy / dist;
+  const nx    = dx / dist;
+  const ny    = dy / dist;
+  const angle = Math.atan2(ny, nx);
+  const power = Math.min(dist / MAX_SHOT_DIST, 1); // 0..1
 
-  // Dashed aim line from cue ball forward
   ctx.save();
-  ctx.setLineDash([6, 6]);
-  ctx.strokeStyle = 'rgba(255,255,200,0.55)';
-  ctx.lineWidth   = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(cue.x, cue.y);
-  ctx.lineTo(cue.x + nx * TW, cue.y + ny * TH);
-  ctx.stroke();
 
-  // Drag back indicator (slingshot line)
-  ctx.setLineDash([]);
-  ctx.strokeStyle = 'rgba(255,200,100,0.6)';
+  // 1. Hosszú szaggatott irányvonal a fehér golyóból előre
+  ctx.setLineDash([10, 7]);
+  ctx.strokeStyle = 'rgba(255,255,180,0.65)';
   ctx.lineWidth   = 2;
   ctx.beginPath();
-  ctx.moveTo(cue.x, cue.y);
-  ctx.lineTo(aimCurrent.x, aimCurrent.y);
+  ctx.moveTo(cue.x + nx * BALL_R, cue.y + ny * BALL_R);
+  ctx.lineTo(cue.x + nx * (Math.max(TW, TH) * 1.5), cue.y + ny * (Math.max(TW, TH) * 1.5));
   ctx.stroke();
 
-  // Circle at drag point
+  // 2. Vastag lövési vonal — fehér golyóból az erőnek megfelelő hosszig
+  const lineLen = 40 + power * 120;
+  ctx.setLineDash([]);
+  const grad = ctx.createLinearGradient(cue.x, cue.y, cue.x + nx * lineLen, cue.y + ny * lineLen);
+  grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+  grad.addColorStop(1, power > 0.6 ? 'rgba(255,80,80,0.8)' : 'rgba(255,220,80,0.8)');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth   = 4;
+  ctx.lineCap     = 'round';
   ctx.beginPath();
-  ctx.arc(aimCurrent.x, aimCurrent.y, 5, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,200,100,0.8)';
+  ctx.moveTo(cue.x, cue.y);
+  ctx.lineTo(cue.x + nx * lineLen, cue.y + ny * lineLen);
+  ctx.stroke();
+
+  // 3. Nyílhegy az irányvonal végén
+  const arrowTip = { x: cue.x + nx * lineLen, y: cue.y + ny * lineLen };
+  const as = 14;
+  ctx.fillStyle = power > 0.6 ? 'rgba(255,80,80,0.95)' : 'rgba(255,220,80,0.95)';
+  ctx.beginPath();
+  ctx.moveTo(arrowTip.x + Math.cos(angle) * as,       arrowTip.y + Math.sin(angle) * as);
+  ctx.lineTo(arrowTip.x + Math.cos(angle + 2.5) * as, arrowTip.y + Math.sin(angle + 2.5) * as);
+  ctx.lineTo(arrowTip.x + Math.cos(angle - 2.5) * as, arrowTip.y + Math.sin(angle - 2.5) * as);
+  ctx.closePath();
   ctx.fill();
+
+  // 4. Fehér golyó kiemelése
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth   = 2.5;
+  ctx.beginPath();
+  ctx.arc(cue.x, cue.y, BALL_R + 4, 0, Math.PI * 2);
+  ctx.stroke();
 
   ctx.restore();
 }

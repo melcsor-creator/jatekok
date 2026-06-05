@@ -444,11 +444,16 @@ function renderOnline(snap) {
     const avatarColor = stringToColor(u.name);
     // Hol van a játékos
     const whereLabels = {
-      'főmenü': '🏠 Főmenü',
-      'akasztófa': 'A_ Akasztófa',
+      'főmenü':       '🏠 Főmenü',
+      'akasztófa':    'A_ Akasztófa',
       'szókapcsolat': 'A=B Szókapcsolat',
-      'páros játék': 'VS Páros',
-      'kerék': '★ Kerék',
+      'páros játék':  'VS Páros játék',
+      'páros meccs':  '⚔️ Páros meccs',
+      'szókereső':    '🔍 Szókereső',
+      'kerék':        '★ Szerencsekerék',
+      'sorsjegy':     '🎟️ Sorsjegy',
+      'torony':       '🏗️ Toronyrakós',
+      'biliárd':      '🎱 Biliárd',
     };
     const whereLabel = whereLabels[u.where] || '● Online';
     return '<li class="' + (isMe ? 'is-me' : '') + '">' +

@@ -435,11 +435,16 @@ function showInviteNotif(inviteId, fromName, diff) {
   setTimeout(() => { if (document.getElementById('invite-notif').style.display !== 'none') declineInvite(); }, 30000);
 }
 
+let acceptingInvite = false;
+
 async function acceptInvite() {
+  if (acceptingInvite) return;
+  acceptingInvite = true;
   document.getElementById('invite-notif').style.display = 'none';
+
   const invSnap = await db.collection('sw_invites').doc(currentInviteId).get();
   const inv = invSnap.data();
-  if (!inv) return;
+  if (!inv || inv.status !== 'pending') { acceptingInvite = false; return; }
 
   const diff = inv.diff || 'easy';
   const cfg = DIFF_CONFIG[diff];
@@ -450,23 +455,28 @@ async function acceptInvite() {
     players: [inv.from, username],
     diff: diff,
     gridSize: cfg.size,
-    grid: grid,        // flat array of letters
+    grid: grid,
     hiddenWords: placed,
     status: 'playing',
     startTime: Date.now() + 3000,
     endTime: Date.now() + 3000 + GAME_TIME * 1000,
-    foundWords: {},    // { word: playerName }
+    foundWords: {},
     scores: { [inv.from]: 0, [username]: 0 }
   });
 
   await db.collection('sw_invites').doc(currentInviteId).update({ status: 'accepted', roomId: roomRef.id });
   opponentName = inv.from;
+  currentInviteId = null;
+  acceptingInvite = false;
   joinRoom(roomRef.id, inv.from);
 }
 
 function declineInvite() {
   document.getElementById('invite-notif').style.display = 'none';
-  if (currentInviteId) db.collection('sw_invites').doc(currentInviteId).update({ status: 'declined' });
+  if (currentInviteId) {
+    db.collection('sw_invites').doc(currentInviteId).update({ status: 'declined' });
+    currentInviteId = null;
+  }
 }
 
 // ── Szó és rács generálás ──
