@@ -42,25 +42,6 @@
     .user-bar .stat { color: var(--muted); }
     .user-bar .stat strong { color: var(--text); }
 
-    /* Játékok szekció */
-    .games-section-header {
-      display: flex; align-items: center; justify-content: space-between;
-      cursor: pointer; padding: 14px 20px;
-      background: var(--bg2); border: 1px solid var(--border);
-      border-radius: var(--radius); margin-bottom: 12px; user-select: none;
-      transition: background .2s;
-    }
-    .games-section-header:hover { background: var(--card); }
-    #games-grid-wrap {
-      overflow: hidden;
-      transition: max-height .35s ease, opacity .3s ease;
-      max-height: 600px;
-      opacity: 1;
-    }
-    #games-grid-wrap.collapsed {
-      max-height: 0;
-      opacity: 0;
-    }
     /* Játék kártyák */
     .games-grid {
       display: grid;
@@ -183,12 +164,8 @@
 
     <!-- Játékok szekció -->
     <div style="margin-bottom:20px;">
-      <div onclick="toggleGames()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:14px 20px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;user-select:none;">
-        <span style="font-size:1.05rem;font-weight:900;">🎮 Játékok</span>
-        <span id="games-toggle-icon" style="font-size:1.1rem;color:var(--muted);transition:transform .25s;">▼</span>
-      </div>
-      <div id="games-grid-wrap">
-        <div class="games-grid">
+      <h2 style="font-size:1.1rem;font-weight:900;margin-bottom:14px;padding:0 4px;">🎮 Játékok</h2>
+      <div class="games-grid">
 
           <a href="game.html" class="game-card accent">
             <div class="gc-icon">A_</div>
@@ -220,7 +197,6 @@
             <div class="gc-desc">Keress elrejtett szavakat a rácsban — páros verseny, 60 mp alatt!</div>
           </a>
 
-        </div>
       </div>
     </div>
 
@@ -398,13 +374,6 @@ async function doRegister() {
 }
 
 function doLogout() { clearSession(); location.reload(); }
-
-function toggleGames() {
-  const wrap = document.getElementById('games-grid-wrap');
-  const icon = document.getElementById('games-toggle-icon');
-  const collapsed = wrap.classList.toggle('collapsed');
-  icon.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
-}
 
 // ── Segédfüggvények az avatarhoz és rang indexhez ──
 function stringToColor(str) {
