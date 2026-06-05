@@ -37,37 +37,43 @@
 
     /* Rács — teljes szélesség mobilon */
     .grid-container {
-      margin-bottom:16px; touch-action:none; user-select:none;
-      width: calc(100vw - 32px);
-      max-width: 600px;
+      margin-bottom: 12px;
+      touch-action: none;
+      user-select: none;
+      margin-left: -16px;
+      margin-right: -16px;
     }
     .sw-grid {
       display: grid;
-      gap: 2px;
-      background: var(--bg2);
-      padding: 6px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
+      gap: 0;
       width: 100%;
       box-sizing: border-box;
+      padding: 4px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
     }
     .sw-cell {
       aspect-ratio: 1;
       display: flex; align-items: center; justify-content: center;
-      font-weight: 900; border-radius: 6px; cursor: pointer;
-      background: var(--card); color: var(--text); border: 1px solid var(--border);
+      font-weight: 900;
+      cursor: pointer;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
       transition: background .1s, color .1s;
       -webkit-tap-highlight-color: transparent;
-      /* betűméret: cella szélességének ~55%-a */
-      font-size: calc((100vw - 44px) / var(--grid-cols) * 0.55);
+      font-size: calc(100vw / var(--grid-cols, 6) * 0.42);
     }
-    @media(min-width:601px) {
-      .sw-cell { font-size: 1.5rem; }
+    @media(min-width: 601px) {
+      .grid-container { margin-left: 0; margin-right: 0; }
+      .sw-grid { border-radius: var(--radius); border: 1px solid var(--border); }
+      .sw-cell { font-size: 1.6rem; border-radius: 4px; }
     }
-    .sw-cell.selecting { background:rgba(124,92,252,0.45); color:#fff; border-color:var(--accent); }
-    .sw-cell.found-me { background:rgba(92,252,142,0.3); color:var(--green); border-color:var(--green); }
-    .sw-cell.found-opp { background:rgba(196,92,252,0.25); color:var(--accent2); border-color:var(--accent2); }
-    .sw-cell.found-both { background:rgba(245,200,66,0.25); color:var(--gold); border-color:var(--gold); }
+    .sw-cell.selecting { background: rgba(124,92,252,0.5); color: #fff; }
+    .sw-cell.found-me { background: rgba(92,252,142,0.35); color: var(--green); }
+    .sw-cell.found-opp { background: rgba(196,92,252,0.3); color: var(--accent2); }
+    .sw-cell.found-both { background: rgba(245,200,66,0.3); color: var(--gold); }
     .sw-cell.selecting { background:rgba(124,92,252,0.35); color:#fff; border-color:var(--accent); }
     .sw-cell.found-me { background:rgba(92,252,142,0.25); color:var(--green); border-color:var(--green); }
     .sw-cell.found-opp { background:rgba(196,92,252,0.2); color:var(--accent2); border-color:var(--accent2); }
@@ -556,7 +562,8 @@ function joinRoom(roomId, oppName) {
 function renderGrid(flatGrid, foundWords) {
   const container = document.getElementById('sw-grid');
   container.style.gridTemplateColumns = 'repeat(' + gridSize + ', 1fr)';
-  // CSS változó a betűméret számításhoz
+  // Betűméret számításhoz CSS változó
+  document.documentElement.style.setProperty('--grid-cols', gridSize);
   container.style.setProperty('--grid-cols', gridSize);
   document.querySelector('.grid-container').style.setProperty('--grid-cols', gridSize);
 
