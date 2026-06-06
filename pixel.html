@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Online Játékok – Pixel Festő</title>
+  <link rel="stylesheet" href="style.css?v=9"/>
+  <style>
+    .site-header{display:none;}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;overflow:hidden;background:#0d0d1a;color:#e8e8f5;font-family:'Segoe UI',sans-serif;}
+
+    /* ── LAYOUT ── */
+    #app{display:flex;flex-direction:column;height:100vh;}
+
+    /* ── TOP BAR ── */
+    #top-bar{
+      display:flex;align-items:center;gap:10px;padding:7px 12px;
+      background:rgba(13,13,26,.97);border-bottom:1px solid #2e2e5e;
+      flex-shrink:0;flex-wrap:wrap;
+    }
+    #top-bar a{color:#8888aa;font-size:.8rem;text-decoration:none;margin-right:4px;}
+    .tb-btn{
+      background:rgba(255,255,255,.07);border:1px solid #3a3a6e;
+      color:#e8e8f5;border-radius:8px;padding:5px 12px;font-size:.8rem;
+      font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;
+      white-space:nowrap;
+    }
+    .tb-btn:hover{background:rgba(124,92,252,.2);border-color:#7c5cfc;}
+    .tb-btn.active{background:rgba(124,92,252,.3);border-color:#7c5cfc;color:#c45cfc;}
+    #tb-size-label{font-size:.75rem;color:#8888aa;white-space:nowrap;}
+    #tb-brush-size{width:70px;accent-color:#7c5cfc;}
+
+    /* ── CANVAS AREA ── */
+    #canvas-area{
+      flex:1;display:flex;align-items:center;justify-content:center;
+      overflow:hidden;padding:8px;
+      background:
+        repeating-conic-gradient(#1a1a2e 0% 25%, #141428 0% 50%)
+        0 0 / 20px 20px;
+    }
+    #pixel-canvas{
+      image-rendering:pixelated;
+      cursor:crosshair;
+      border:2px solid #3a3a6e;
+      border-radius:4px;
+      touch-action:none;
+      box-shadow:0 0 40px rgba(0,0,0,.6);
+      display:block;
+    }
+
+    /* ── COLOR PALETTE ── */
+    #palette-bar{
+      flex-shrink:0;
+      background:rgba(13,13,26,.97);
+      border-top:1px solid #2e2e5e;
+      padding:8px 12px;
+      display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    }
+    #palette{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+    .pal-color{
+      width:28px;height:28px;border-radius:6px;cursor:pointer;
+      border:2px solid transparent;transition:transform .1s,border-color .1s;
+      flex-shrink:0;
+    }
+    .pal-color:hover{transform:scale(1.15);}
+    .pal-color.selected{border-color:#fff;transform:scale(1.15);box-shadow:0 0 8px rgba(255,255,255,.4);}
+    #custom-color{
+      width:28px;height:28px;border-radius:6px;cursor:pointer;
+      border:2px solid #3a3a6e;padding:0;background:none;overflow:hidden;
+    }
+    #custom-color::-webkit-color-swatch-wrapper{padding:0;}
+    #custom-color::-webkit-color-swatch{border:none;border-radius:4px;}
+
+    /* Eszközök */
+    #tools{display:flex;gap:5px;align-items:center;}
+    .tool-btn{
+      width:32px;height:32px;border-radius:7px;cursor:pointer;
+      background:rgba(255,255,255,.07);border:1px solid #3a3a6e;
+      font-size:1rem;display:flex;align-items:center;justify-content:center;
+      transition:all .15s;flex-shrink:0;
+    }
+    .tool-btn:hover{background:rgba(124,92,252,.2);border-color:#7c5cfc;}
+    .tool-btn.active{background:rgba(124,92,252,.3);border-color:#7c5cfc;}
+
+    /* Aktív szín előnézet */
+    #active-color-preview{
+      width:36px;height:36px;border-radius:8px;
+      border:2px solid #fff;flex-shrink:0;
+      box-shadow:0 0 8px rgba(0,0,0,.5);
+    }
+
+    /* Rács toggle */
+    #grid-toggle{font-size:.72rem;}
+
+    /* Toast */
+    .toast{
+      position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+      background:#1a1a35;border:1px solid #7c5cfc;border-radius:10px;
+      padding:10px 20px;font-size:.85rem;font-weight:700;
+      z-index:999;animation:fadeIn .3s ease;pointer-events:none;
+    }
+    @keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+    /* Mobil: palette görgethető */
+    @media(max-width:600px){
+      #palette-bar{overflow-x:auto;flex-wrap:nowrap;}
+      #palette{flex-wrap:nowrap;}
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="top-bar">
+    <a href="index.html">← Főoldal</a>
+
+    <!-- Rács méret -->
+    <span id="tb-size-label">16×16</span>
+    <button class="tb-btn active" onclick="setGridSize(16)">16</button>
+    <button class="tb-btn" onclick="setGridSize(32)">32</button>
+    <button class="tb-btn" onclick="setGridSize(48)">48</button>
+
+    <!-- Ecset méret -->
+    <input type="range" id="tb-brush-size" min="1" max="8" value="1" oninput="brushSize=+this.value;updateBrushLabel()"/>
+    <span id="brush-label" style="font-size:.75rem;color:#8888aa;">1px</span>
+
+    <!-- Műveletek -->
+    <button class="tb-btn" onclick="clearCanvas()">🗑 Törlés</button>
+    <button class="tb-btn" onclick="fillCanvas()">🪣 Kitöltés</button>
+    <button class="tb-btn" onclick="downloadCanvas()">💾 Mentés</button>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-area">
+    <canvas id="pixel-canvas"></canvas>
+  </div>
+
+  <!-- PALETTE & TOOLS -->
+  <div id="palette-bar">
+    <!-- Aktív szín -->
+    <div id="active-color-preview"></div>
+
+    <!-- Eszközök -->
+    <div id="tools">
+      <div class="tool-btn active" id="tool-draw" onclick="setTool('draw')" title="Rajzolás">✏️</div>
+      <div class="tool-btn" id="tool-erase" onclick="setTool('erase')" title="Radír">🧹</div>
+      <div class="tool-btn" id="tool-fill" onclick="setTool('fill')" title="Kitöltő vödör">🪣</div>
+      <div class="tool-btn" id="tool-pick" onclick="setTool('pick')" title="Szemcseppentő">💉</div>
+      <div class="tool-btn" id="grid-toggle" onclick="toggleGrid()" title="Rács">⊞</div>
+    </div>
+
+    <!-- Szín paletta -->
+    <div id="palette"></div>
+
+    <!-- Egyéni szín -->
+    <input type="color" id="custom-color" value="#7c5cfc" oninput="setColor(this.value)" title="Egyéni szín"/>
+  </div>
+
+</div>
+
+<script src="firebase.js"></script>
+<script>
+// ── PALETTA ──
+const PALETTE = [
+  '#000000','#ffffff','#ff0000','#ff6600','#ffcc00','#00cc00',
+  '#0066ff','#9900ff','#ff66cc','#00ccff','#66ff66','#ffff00',
+  '#ff3300','#003366','#663300','#999999','#cccccc','#ff99cc',
+  '#00ffcc','#ff9900','#336600','#660066','#003300','#330000',
+];
+
+const canvas = document.getElementById('pixel-canvas');
+const ctx = canvas.getContext('2d');
+
+let gridSize = 16;
+let cellSize = 20;
+let currentColor = '#ff0000';
+let brushSize = 1;
+let tool = 'draw';
+let showGrid = true;
+let isDrawing = false;
+let pixelData = []; // [row][col] = color string
+let lastCell = null;
+
+// ── INIT ──
+function init() {
+  buildPalette();
+  setColor('#ff0000');
+  setGridSize(16);
+}
+
+function buildPalette() {
+  const pal = document.getElementById('palette');
+  pal.innerHTML = '';
+  PALETTE.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'pal-color';
+    d.style.background = c;
+    d.dataset.color = c;
+    d.onclick = () => { setColor(c); setTool('draw'); };
+    pal.appendChild(d);
+  });
+}
+
+function setColor(c) {
+  currentColor = c;
+  document.getElementById('active-color-preview').style.background = c;
+  document.getElementById('custom-color').value = c;
+  document.querySelectorAll('.pal-color').forEach(el => {
+    el.classList.toggle('selected', el.dataset.color === c);
+  });
+}
+
+function setTool(t) {
+  tool = t;
+  ['draw','erase','fill','pick'].forEach(id => {
+    const el = document.getElementById('tool-'+id);
+    if(el) el.classList.toggle('active', id === t);
+  });
+}
+
+function setGridSize(size) {
+  gridSize = size;
+  document.getElementById('tb-size-label').textContent = size+'×'+size;
+  document.querySelectorAll('#top-bar .tb-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === String(size));
+  });
+
+  // Adatok inicializálása
+  pixelData = Array.from({length: size}, () => Array(size).fill(null));
+  resizeCanvas();
+}
+
+function resizeCanvas() {
+  const area = document.getElementById('canvas-area');
+  const avail = Math.min(area.clientWidth, area.clientHeight) - 16;
+  cellSize = Math.floor(avail / gridSize);
+  canvas.width  = cellSize * gridSize;
+  canvas.height = cellSize * gridSize;
+  redraw();
+}
+
+// ── RAJZOLÁS ──
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Fehér háttér
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Pixel adatok
+  for(let r = 0; r < gridSize; r++) {
+    for(let c = 0; c < gridSize; c++) {
+      if(pixelData[r][c]) {
+        ctx.fillStyle = pixelData[r][c];
+        ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  // Rács
+  if(showGrid && cellSize >= 4) {
+    ctx.strokeStyle = 'rgba(100,100,140,0.3)';
+    ctx.lineWidth = 0.5;
+    for(let i = 0; i <= gridSize; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * cellSize, 0);
+      ctx.lineTo(i * cellSize, canvas.height);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, i * cellSize);
+      ctx.lineTo(canvas.width, i * cellSize);
+      ctx.stroke();
+    }
+  }
+}
+
+function paintCell(r, c) {
+  if(r < 0 || r >= gridSize || c < 0 || c >= gridSize) return;
+  const half = Math.floor(brushSize / 2);
+  for(let dr = -half; dr <= half; dr++) {
+    for(let dc = -half; dc <= half; dc++) {
+      const nr = r + dr, nc = c + dc;
+      if(nr < 0 || nr >= gridSize || nc < 0 || nc >= gridSize) continue;
+      if(tool === 'erase') {
+        pixelData[nr][nc] = null;
+      } else {
+        pixelData[nr][nc] = currentColor;
+      }
+    }
+  }
+  redraw();
+}
+
+// Flood fill
+function floodFill(r, c, targetColor, fillColor) {
+  if(r < 0 || r >= gridSize || c < 0 || c >= gridSize) return;
+  const cur = pixelData[r][c] || '#ffffff';
+  if(cur !== targetColor) return;
+  if(targetColor === fillColor) return;
+  pixelData[r][c] = fillColor;
+  floodFill(r-1, c, targetColor, fillColor);
+  floodFill(r+1, c, targetColor, fillColor);
+  floodFill(r, c-1, targetColor, fillColor);
+  floodFill(r, c+1, targetColor, fillColor);
+}
+
+function getCellFromEvent(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top)  * scaleY;
+  const c = Math.floor(x / cellSize);
+  const r = Math.floor(y / cellSize);
+  return { r, c };
+}
+
+// ── EVENTS ──
+function handleStart(e) {
+  e.preventDefault();
+  isDrawing = true;
+  const pt = e.touches ? e.touches[0] : e;
+  const {r, c} = getCellFromEvent(pt);
+  lastCell = {r, c};
+
+  if(tool === 'pick') {
+    const color = pixelData[r][c] || '#ffffff';
+    setColor(color);
+    setTool('draw');
+    return;
+  }
+  if(tool === 'fill') {
+    const target = pixelData[r][c] || '#ffffff';
+    floodFill(r, c, target, currentColor);
+    redraw();
+    return;
+  }
+  paintCell(r, c);
+}
+
+function handleMove(e) {
+  e.preventDefault();
+  if(!isDrawing) return;
+  if(tool === 'fill' || tool === 'pick') return;
+  const pt = e.touches ? e.touches[0] : e;
+  const {r, c} = getCellFromEvent(pt);
+  if(lastCell && lastCell.r === r && lastCell.c === c) return;
+  lastCell = {r, c};
+  paintCell(r, c);
+}
+
+function handleEnd() { isDrawing = false; lastCell = null; }
+
+canvas.addEventListener('mousedown',  handleStart);
+canvas.addEventListener('mousemove',  handleMove);
+canvas.addEventListener('mouseup',    handleEnd);
+canvas.addEventListener('mouseleave', handleEnd);
+canvas.addEventListener('touchstart', handleStart, {passive:false});
+canvas.addEventListener('touchmove',  handleMove,  {passive:false});
+canvas.addEventListener('touchend',   handleEnd);
+
+// ── GOMBOK ──
+function clearCanvas() {
+  if(!confirm('Biztosan törlöd a rajzot?')) return;
+  pixelData = Array.from({length: gridSize}, () => Array(gridSize).fill(null));
+  redraw();
+}
+
+function fillCanvas() {
+  pixelData = Array.from({length: gridSize}, () => Array(gridSize).fill(currentColor));
+  redraw();
+}
+
+function toggleGrid() {
+  showGrid = !showGrid;
+  document.getElementById('grid-toggle').classList.toggle('active', showGrid);
+  redraw();
+}
+
+function updateBrushLabel() {
+  document.getElementById('brush-label').textContent = brushSize + 'px';
+}
+
+function downloadCanvas() {
+  // Kép exportálása rács nélkül
+  const exp = document.createElement('canvas');
+  const expSize = Math.max(gridSize * 16, 512);
+  const expCell = Math.floor(expSize / gridSize);
+  exp.width  = expCell * gridSize;
+  exp.height = expCell * gridSize;
+  const ec = exp.getContext('2d');
+  ec.fillStyle = '#ffffff';
+  ec.fillRect(0, 0, exp.width, exp.height);
+  for(let r = 0; r < gridSize; r++) {
+    for(let c = 0; c < gridSize; c++) {
+      if(pixelData[r][c]) {
+        ec.fillStyle = pixelData[r][c];
+        ec.fillRect(c * expCell, r * expCell, expCell, expCell);
+      }
+    }
+  }
+  const link = document.createElement('a');
+  link.download = 'pixel-art.png';
+  link.href = exp.toDataURL('image/png');
+  link.click();
+  showToast('💾 Kép letöltve!');
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+// ── RESIZE ──
+window.addEventListener('resize', () => resizeCanvas());
+
+// ── START ──
+init();
+</script>
+</body>
+</html>
