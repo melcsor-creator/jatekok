@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Online Játékok – Színező</title>
+  <link rel="stylesheet" href="style.css?v=9"/>
+  <style>
+    .site-header{display:none;}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;overflow:hidden;background:#0d0d1a;color:#e8e8f5;font-family:'Segoe UI',sans-serif;}
+    #app{display:flex;flex-direction:column;height:100vh;}
+
+    /* TOP BAR */
+    #top-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(13,13,26,.97);border-bottom:1px solid #2e2e5e;flex-shrink:0;flex-wrap:wrap;}
+    #top-bar a{color:#8888aa;font-size:.8rem;text-decoration:none;}
+    .tb-btn{background:rgba(255,255,255,.07);border:1px solid #3a3a6e;color:#e8e8f5;border-radius:8px;padding:5px 12px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;}
+    .tb-btn:hover{background:rgba(124,92,252,.2);border-color:#7c5cfc;}
+    #pic-title{font-size:.85rem;font-weight:800;color:#c45cfc;}
+
+    /* PICTURE SELECT */
+    #pic-select{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;}
+    .pic-thumb{width:40px;height:40px;border-radius:8px;border:2px solid #3a3a6e;cursor:pointer;background:#1a1a35;display:flex;align-items:center;justify-content:center;font-size:1.3rem;transition:all .15s;flex-shrink:0;}
+    .pic-thumb:hover,.pic-thumb.active{border-color:#7c5cfc;background:rgba(124,92,252,.15);}
+
+    /* CANVAS */
+    #canvas-area{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:8px;background:#1a1a2e;}
+    #coloring-canvas{cursor:crosshair;border-radius:8px;border:2px solid #3a3a6e;box-shadow:0 0 30px rgba(0,0,0,.5);touch-action:none;display:block;max-width:100%;max-height:100%;}
+
+    /* PALETTE */
+    #palette-bar{flex-shrink:0;background:rgba(13,13,26,.97);border-top:1px solid #2e2e5e;padding:8px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+    #active-preview{width:36px;height:36px;border-radius:8px;border:2px solid #fff;flex-shrink:0;box-shadow:0 0 8px rgba(0,0,0,.5);}
+    #palette{display:flex;gap:5px;flex-wrap:wrap;}
+    .pal-c{width:30px;height:30px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:transform .1s,border-color .1s;flex-shrink:0;}
+    .pal-c:hover{transform:scale(1.18);}
+    .pal-c.sel{border-color:#fff;transform:scale(1.18);box-shadow:0 0 8px rgba(255,255,255,.4);}
+    #custom-col{width:30px;height:30px;border-radius:6px;cursor:pointer;border:2px solid #3a3a6e;padding:0;background:none;overflow:hidden;}
+    #custom-col::-webkit-color-swatch-wrapper{padding:0;}
+    #custom-col::-webkit-color-swatch{border:none;border-radius:4px;}
+
+    /* Toast */
+    .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a35;border:1px solid #7c5cfc;border-radius:10px;padding:10px 20px;font-size:.85rem;font-weight:700;z-index:999;animation:fadeIn .3s ease;pointer-events:none;}
+    @keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+    @media(max-width:600px){#palette-bar{overflow-x:auto;flex-wrap:nowrap;}#palette{flex-wrap:nowrap;}}
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div id="top-bar">
+    <a href="index.html">← Főoldal</a>
+    <span id="pic-title">Macska</span>
+    <div id="pic-select"></div>
+    <button class="tb-btn" onclick="resetColors()">🗑 Reset</button>
+    <button class="tb-btn" onclick="downloadImg()">💾 Mentés</button>
+  </div>
+
+  <div id="canvas-area">
+    <canvas id="coloring-canvas"></canvas>
+  </div>
+
+  <div id="palette-bar">
+    <div id="active-preview"></div>
+    <div id="palette"></div>
+    <input type="color" id="custom-col" value="#ff0000" oninput="setColor(this.value)" title="Egyéni szín"/>
+  </div>
+
+</div>
+
+<script>
+// ── PALETTA ──
+const PALETTE = [
+  '#000000','#ffffff','#ff0000','#ff6600','#ffcc00','#ffff00',
+  '#00cc00','#006600','#00ccff','#0066ff','#9900ff','#ff66cc',
+  '#ff99cc','#ffcc99','#ccff99','#99ffcc','#99ccff','#cc99ff',
+  '#663300','#999999','#cccccc','#ff3300','#003366','#336600',
+];
+
+// ── KÉPEK DEFINÍCIÓI ──
+// Minden kép SVG path-ok listája { id, fill, stroke, d }
+// id: egyedi azonosító, fill: alap kitöltési szín (null=fehér), d: SVG path
+
+const PICTURES = [
+  {
+    name: 'Macska', icon: '🐱',
+    viewBox: '0 0 200 200',
+    parts: [
+      // Test
+      { id:'body', fill:'#ffffff', d:'M50,120 Q50,180 100,185 Q150,180 150,120 Q155,90 150,70 Q140,50 100,48 Q60,50 50,70 Q45,90 50,120Z' },
+      // Fej
+      { id:'head', fill:'#ffffff', d:'M65,75 Q65,40 100,38 Q135,40 135,75 Q135,100 100,102 Q65,100 65,75Z' },
+      // Bal fül
+      { id:'ear-l', fill:'#ffffff', d:'M68,55 L60,25 L88,50Z' },
+      // Jobb fül
+      { id:'ear-r', fill:'#ffffff', d:'M132,55 L140,25 L112,50Z' },
+      // Bal fül belső
+      { id:'ear-l-in', fill:'#ffcccc', d:'M70,52 L64,30 L84,50Z' },
+      // Jobb fül belső
+      { id:'ear-r-in', fill:'#ffcccc', d:'M130,52 L136,30 L116,50Z' },
+      // Bal szem
+      { id:'eye-l', fill:'#00aa00', d:'M82,72 Q82,65 88,65 Q94,65 94,72 Q94,79 88,79 Q82,79 82,72Z' },
+      // Jobb szem
+      { id:'eye-r', fill:'#00aa00', d:'M106,72 Q106,65 112,65 Q118,65 118,72 Q118,79 112,79 Q106,79 106,72Z' },
+      // Pupilla bal
+      { id:'pupil-l', fill:'#000000', d:'M85,72 Q85,68 88,68 Q91,68 91,72 Q91,76 88,76 Q85,76 85,72Z' },
+      // Pupilla jobb
+      { id:'pupil-r', fill:'#000000', d:'M109,72 Q109,68 112,68 Q115,68 115,72 Q115,76 112,76 Q109,76 109,72Z' },
+      // Orr
+      { id:'nose', fill:'#ff9999', d:'M97,83 L100,88 L103,83 Q100,80 97,83Z' },
+      // Száj
+      { id:'mouth', fill:'none', stroke:'#333', d:'M94,90 Q100,96 106,90' },
+      // Bajusz bal
+      { id:'whisker-l1', fill:'none', stroke:'#888', d:'M94,85 L70,80' },
+      { id:'whisker-l2', fill:'none', stroke:'#888', d:'M94,88 L70,88' },
+      // Bajusz jobb
+      { id:'whisker-r1', fill:'none', stroke:'#888', d:'M106,85 L130,80' },
+      { id:'whisker-r2', fill:'none', stroke:'#888', d:'M106,88 L130,88' },
+      // Farok
+      { id:'tail', fill:'#ffffff', d:'M148,160 Q180,140 175,110 Q172,95 162,100 Q170,125 150,145Z' },
+      // Mellső bal láb
+      { id:'paw-fl', fill:'#ffffff', d:'M70,170 Q65,185 75,188 Q85,188 82,175Z' },
+      // Mellső jobb láb
+      { id:'paw-fr', fill:'#ffffff', d:'M118,170 Q115,185 125,188 Q135,188 130,175Z' },
+    ]
+  },
+  {
+    name: 'Ház', icon: '🏠',
+    viewBox: '0 0 200 200',
+    parts: [
+      // Tető
+      { id:'roof', fill:'#cc4444', d:'M100,20 L175,80 L25,80Z' },
+      // Ház fal
+      { id:'wall', fill:'#f5deb3', d:'M35,80 L35,185 L165,185 L165,80Z' },
+      // Ajtó
+      { id:'door', fill:'#8b4513', d:'M85,130 L85,185 L115,185 L115,130 Q100,125 85,130Z' },
+      // Ajtókilincs
+      { id:'knob', fill:'#ffd700', d:'M111,158 Q114,158 114,160 Q114,162 111,162 Q108,162 108,160 Q108,158 111,158Z' },
+      // Bal ablak
+      { id:'win-l', fill:'#aaddff', d:'M45,100 L45,130 L75,130 L75,100Z' },
+      // Jobb ablak
+      { id:'win-r', fill:'#aaddff', d:'M125,100 L125,130 L155,130 L155,100Z' },
+      // Bal ablak kereszt
+      { id:'win-l-x', fill:'none', stroke:'#888', d:'M60,100 L60,130 M45,115 L75,115' },
+      // Jobb ablak kereszt
+      { id:'win-r-x', fill:'none', stroke:'#888', d:'M140,100 L140,130 M125,115 L155,115' },
+      // Kémény
+      { id:'chimney', fill:'#cc6644', d:'M130,20 L130,55 L148,55 L148,35Z' },
+      // Kémény füst
+      { id:'smoke', fill:'none', stroke:'#bbbbbb', d:'M139,18 Q135,10 139,5 Q143,0 139,-5' },
+      // Fű
+      { id:'grass', fill:'#55aa55', d:'M0,185 L200,185 L200,200 L0,200Z' },
+      // Út
+      { id:'path', fill:'#ccaa88', d:'M85,185 L85,200 L115,200 L115,185Z' },
+    ]
+  },
+  {
+    name: 'Napraforgó', icon: '🌻',
+    viewBox: '0 0 200 220',
+    parts: [
+      // Szár
+      { id:'stem', fill:'#33aa33', d:'M95,120 Q90,160 92,210 L108,210 Q106,160 105,120Z' },
+      // Levelek
+      { id:'leaf-l', fill:'#44bb44', d:'M95,150 Q70,135 65,115 Q80,125 95,155Z' },
+      { id:'leaf-r', fill:'#44bb44', d:'M105,145 Q130,130 135,110 Q120,120 105,148Z' },
+      // Sziromkörök (8 db)
+      { id:'p1', fill:'#ffcc00', d:'M100,30 Q110,15 100,5 Q90,15 100,30Z' },
+      { id:'p2', fill:'#ffcc00', d:'M128,42 Q145,35 148,22 Q132,28 128,42Z' },
+      { id:'p3', fill:'#ffcc00', d:'M140,70 Q158,70 165,58 Q148,57 140,70Z' },
+      { id:'p4', fill:'#ffcc00', d:'M132,98 Q148,106 158,98 Q145,88 132,98Z' },
+      { id:'p5', fill:'#ffcc00', d:'M108,112 Q112,130 122,130 Q118,115 108,112Z' },
+      { id:'p6', fill:'#ffcc00', d:'M78,108 Q72,125 80,132 Q85,118 78,108Z' },
+      { id:'p7', fill:'#ffcc00', d:'M60,82 Q44,86 40,98 Q56,95 60,82Z' },
+      { id:'p8', fill:'#ffcc00', d:'M62,52 Q47,48 42,58 Q57,64 62,52Z' },
+      // Közepe
+      { id:'center', fill:'#884400', d:'M75,68 Q75,40 100,38 Q125,40 125,68 Q125,96 100,98 Q75,96 75,68Z' },
+      // Mag mintázat
+      { id:'seeds', fill:'#552200', d:'M88,60 Q88,56 92,56 Q96,56 96,60 Q96,64 92,64 Q88,64 88,60Z M100,55 Q100,51 104,51 Q108,51 108,55 Q108,59 104,59 Q100,59 100,55Z M112,60 Q112,56 108,56 Q112,65 108,68 Q112,68 112,64Z M90,72 Q90,68 94,68 Q98,68 98,72 Q98,76 94,76 Q90,76 90,72Z M102,72 Q102,68 106,68 Q110,68 110,72 Q110,76 106,76 Q102,76 102,72Z' },
+    ]
+  },
+  {
+    name: 'Csillagos ég', icon: '🌙',
+    viewBox: '0 0 200 200',
+    parts: [
+      // Ég
+      { id:'sky', fill:'#001133', d:'M0,0 L200,0 L200,150 L0,150Z' },
+      // Hold
+      { id:'moon', fill:'#ffffcc', d:'M140,30 Q160,30 165,50 Q170,70 155,80 Q170,65 165,45 Q158,25 140,30Z' },
+      // Hold árnyéka
+      { id:'moon-shadow', fill:'#aaaaee', d:'M148,28 Q165,35 168,52 Q170,65 160,75 Q172,62 168,46 Q162,25 148,28Z' },
+      // Csillagok
+      { id:'star1', fill:'#ffffff', d:'M30,20 L32,26 L38,26 L33,30 L35,36 L30,32 L25,36 L27,30 L22,26 L28,26Z' },
+      { id:'star2', fill:'#ffffff', d:'M70,10 L71,14 L75,14 L72,16 L73,20 L70,18 L67,20 L68,16 L65,14 L69,14Z' },
+      { id:'star3', fill:'#ffffff', d:'M110,25 L111,29 L115,29 L112,31 L113,35 L110,33 L107,35 L108,31 L105,29 L109,29Z' },
+      { id:'star4', fill:'#ffffaa', d:'M55,45 L56,48 L59,48 L57,50 L58,53 L55,51 L52,53 L53,50 L51,48 L54,48Z' },
+      { id:'star5', fill:'#ffffaa', d:'M90,55 L91,58 L94,58 L92,60 L93,63 L90,61 L87,63 L88,60 L86,58 L89,58Z' },
+      { id:'star6', fill:'#ffffff', d:'M20,60 L21,63 L24,63 L22,65 L23,68 L20,66 L17,68 L18,65 L16,63 L19,63Z' },
+      { id:'star7', fill:'#ffffff', d:'M175,15 L176,19 L180,19 L177,21 L178,25 L175,23 L172,25 L173,21 L170,19 L174,19Z' },
+      { id:'star8', fill:'#ffffaa', d:'M160,50 L161,53 L164,53 L162,55 L163,58 L160,56 L157,58 L158,55 L156,53 L159,53Z' },
+      // Hegyek
+      { id:'mount-l', fill:'#334466', d:'M0,150 L60,80 L120,150Z' },
+      { id:'mount-r', fill:'#445577', d:'M80,150 L150,70 L200,150Z' },
+      // Hócsúcs bal
+      { id:'snow-l', fill:'#ffffff', d:'M60,80 L50,100 L70,100Z' },
+      // Hócsúcs jobb
+      { id:'snow-r', fill:'#ffffff', d:'M150,70 L140,92 L160,92Z' },
+      // Fű
+      { id:'ground', fill:'#224422', d:'M0,150 L200,150 L200,200 L0,200Z' },
+      // Folyó
+      { id:'river', fill:'#3366aa', d:'M60,200 Q90,170 120,200Z' },
+      // Fák
+      { id:'tree-l', fill:'#226622', d:'M15,150 L22,120 L29,150Z' },
+      { id:'tree-r', fill:'#226622', d:'M170,150 L177,118 L184,150Z' },
+      { id:'trunk-l', fill:'#884400', d:'M20,150 L21,160 L23,160 L24,150Z' },
+      { id:'trunk-r', fill:'#884400', d:'M175,150 L176,160 L178,160 L179,150Z' },
+    ]
+  },
+  {
+    name: 'Pillangó', icon: '🦋',
+    viewBox: '0 0 200 200',
+    parts: [
+      // Bal felső szárny
+      { id:'wing-tl', fill:'#ff6600', d:'M100,90 Q80,60 40,50 Q20,60 25,85 Q30,110 70,105 Q90,100 100,90Z' },
+      // Jobb felső szárny
+      { id:'wing-tr', fill:'#ff6600', d:'M100,90 Q120,60 160,50 Q180,60 175,85 Q170,110 130,105 Q110,100 100,90Z' },
+      // Bal alsó szárny
+      { id:'wing-bl', fill:'#ffaa00', d:'M100,100 Q80,110 45,130 Q30,150 45,165 Q65,175 90,155 Q105,135 100,100Z' },
+      // Jobb alsó szárny
+      { id:'wing-br', fill:'#ffaa00', d:'M100,100 Q120,110 155,130 Q170,150 155,165 Q135,175 110,155 Q95,135 100,100Z' },
+      // Szárny minta bal felső
+      { id:'pat-tl', fill:'#000000', d:'M70,75 Q65,70 60,75 Q65,82 70,75Z M50,80 Q45,75 40,80 Q45,87 50,80Z' },
+      // Szárny minta jobb felső
+      { id:'pat-tr', fill:'#000000', d:'M130,75 Q135,70 140,75 Q135,82 130,75Z M150,80 Q155,75 160,80 Q155,87 150,80Z' },
+      // Fehér folt bal
+      { id:'spot-l', fill:'#ffffff', d:'M55,65 Q55,60 60,60 Q65,60 65,65 Q65,70 60,70 Q55,70 55,65Z' },
+      // Fehér folt jobb
+      { id:'spot-r', fill:'#ffffff', d:'M135,65 Q135,60 140,60 Q145,60 145,65 Q145,70 140,70 Q135,70 135,65Z' },
+      // Test
+      { id:'body', fill:'#333333', d:'M96,55 Q94,75 95,145 Q100,150 105,145 Q106,75 104,55 Q100,50 96,55Z' },
+      // Csáp bal
+      { id:'ant-l', fill:'none', stroke:'#333', d:'M98,58 Q85,40 80,28' },
+      { id:'ant-l-tip', fill:'#333333', d:'M78,26 Q78,22 82,22 Q86,22 86,26 Q86,30 82,30 Q78,30 78,26Z' },
+      // Csáp jobb
+      { id:'ant-r', fill:'none', stroke:'#333', d:'M102,58 Q115,40 120,28' },
+      { id:'ant-r-tip', fill:'#333333', d:'M118,26 Q118,22 122,22 Q126,22 126,26 Q126,30 122,30 Q118,30 118,26Z' },
+    ]
+  },
+  {
+    name: 'Hal', icon: '🐟',
+    viewBox: '0 0 220 160',
+    parts: [
+      { id:'water', fill:'#aaddff', d:'M0,0 L220,0 L220,160 L0,160Z' },
+      { id:'wave1', fill:'#88bbff', d:'M0,30 Q30,20 60,30 Q90,40 120,30 Q150,20 180,30 Q200,36 220,30 L220,0 L0,0Z' },
+      { id:'fish-body', fill:'#ff6600', d:'M50,80 Q60,50 130,55 Q160,60 170,80 Q160,100 130,105 Q60,110 50,80Z' },
+      { id:'tail', fill:'#ff4400', d:'M168,80 L195,55 L200,80 L195,105Z' },
+      { id:'belly', fill:'#ffcc88', d:'M70,80 Q80,68 120,70 Q148,72 155,80 Q148,90 120,92 Q80,93 70,80Z' },
+      { id:'fin-top', fill:'#ff4400', d:'M90,55 Q100,35 120,38 Q125,55 110,58Z' },
+      { id:'fin-side', fill:'#ff8800', d:'M100,90 Q95,110 110,115 Q115,100 100,90Z' },
+      { id:'eye', fill:'#ffffff', d:'M82,72 Q82,64 88,64 Q94,64 94,72 Q94,80 88,80 Q82,80 82,72Z' },
+      { id:'pupil', fill:'#000033', d:'M85,72 Q85,68 88,68 Q91,68 91,72 Q91,76 88,76 Q85,76 85,72Z' },
+      { id:'mouth', fill:'#cc4400', d:'M57,82 Q55,78 58,76 Q60,80 57,82Z' },
+      { id:'scale1', fill:'none', stroke:'#ff4400', d:'M100,65 Q105,72 100,80' },
+      { id:'scale2', fill:'none', stroke:'#ff4400', d:'M115,63 Q120,70 115,78' },
+      { id:'scale3', fill:'none', stroke:'#ff4400', d:'M130,65 Q135,72 130,80' },
+      { id:'scale4', fill:'none', stroke:'#ff4400', d:'M145,70 Q148,77 145,83' },
+      { id:'bubble1', fill:'none', stroke:'#ffffff', d:'M70,45 Q70,38 76,38 Q82,38 82,45 Q82,52 76,52 Q70,52 70,45Z' },
+      { id:'bubble2', fill:'none', stroke:'#ffffff', d:'M55,30 Q55,25 59,25 Q63,25 63,30 Q63,35 59,35 Q55,35 55,30Z' },
+    ]
+  },
+  {
+    name: 'Vonat', icon: '🚂',
+    viewBox: '0 0 220 180',
+    parts: [
+      { id:'sky', fill:'#aaddff', d:'M0,0 L220,0 L220,120 L0,120Z' },
+      { id:'ground', fill:'#88aa66', d:'M0,120 L220,120 L220,180 L0,180Z' },
+      { id:'rail-b', fill:'#886633', d:'M0,140 L220,140 L220,148 L0,148Z' },
+      { id:'rail-t', fill:'#886633', d:'M0,130 L220,130 L220,138 L0,138Z' },
+      { id:'sleeper1', fill:'#664422', d:'M20,128 L30,128 L30,150 L20,150Z' },
+      { id:'sleeper2', fill:'#664422', d:'M60,128 L70,128 L70,150 L60,150Z' },
+      { id:'sleeper3', fill:'#664422', d:'M100,128 L110,128 L110,150 L100,150Z' },
+      { id:'sleeper4', fill:'#664422', d:'M140,128 L150,128 L150,150 L140,150Z' },
+      { id:'sleeper5', fill:'#664422', d:'M180,128 L190,128 L190,150 L180,150Z' },
+      { id:'loco-body', fill:'#cc2200', d:'M30,75 L30,130 L140,130 L140,75 Q135,65 85,63 Q35,65 30,75Z' },
+      { id:'loco-cabin', fill:'#aa1100', d:'M105,55 L105,75 L140,75 L140,55Z' },
+      { id:'chimney', fill:'#333333', d:'M50,55 L50,63 L65,63 L65,55Z' },
+      { id:'chimney-top', fill:'#222222', d:'M46,52 L46,57 L69,57 L69,52Z' },
+      { id:'smoke1', fill:'#dddddd', d:'M57,52 Q57,42 62,38 Q67,42 57,52Z' },
+      { id:'smoke2', fill:'#cccccc', d:'M54,45 Q50,35 55,28 Q62,35 54,45Z' },
+      { id:'win1', fill:'#aaddff', d:'M112,60 L112,72 L128,72 L128,60Z' },
+      { id:'win2', fill:'#aaddff', d:'M38,80 L38,100 L60,100 L60,80Z' },
+      { id:'win3', fill:'#aaddff', d:'M72,80 L72,100 L94,100 L94,80Z' },
+      { id:'wheel1', fill:'#333333', d:'M50,130 Q50,115 60,115 Q70,115 70,130Z' },
+      { id:'wheel2', fill:'#333333', d:'M90,130 Q90,112 102,112 Q114,112 114,130Z' },
+      { id:'wheel3', fill:'#333333', d:'M120,130 Q120,115 130,115 Q140,115 140,130Z' },
+      { id:'wheel-c1', fill:'#888888', d:'M57,122 Q57,119 60,119 Q63,119 63,122 Q63,125 60,125 Q57,125 57,122Z' },
+      { id:'wheel-c2', fill:'#888888', d:'M99,121 Q99,118 102,118 Q105,118 105,121 Q105,124 102,124 Q99,124 99,121Z' },
+      { id:'wheel-c3', fill:'#888888', d:'M127,122 Q127,119 130,119 Q133,119 133,122 Q133,125 130,125 Q127,125 127,122Z' },
+      { id:'cloud1', fill:'#ffffff', d:'M160,25 Q160,15 170,15 Q175,10 182,12 Q188,10 192,15 Q200,15 200,25 Q200,32 192,32 L163,32 Q160,32 160,25Z' },
+      { id:'cloud2', fill:'#ffffff', d:'M20,18 Q20,10 28,10 Q32,6 38,8 Q42,6 45,10 Q50,10 50,18 Q50,24 45,24 L23,24 Q20,24 20,18Z' },
+      { id:'sun', fill:'#ffcc00', d:'M190,12 Q190,4 198,4 Q206,4 206,12 Q206,20 198,20 Q190,20 190,12Z' },
+    ]
+  },
+  {
+    name: 'Sárkány', icon: '🐲',
+    viewBox: '0 0 200 200',
+    parts: [
+      { id:'bg', fill:'#224422', d:'M0,0 L200,0 L200,200 L0,200Z' },
+      { id:'body', fill:'#22aa44', d:'M60,100 Q55,140 70,170 Q100,185 130,170 Q145,140 140,100 Q135,70 100,65 Q65,70 60,100Z' },
+      { id:'neck', fill:'#22aa44', d:'M85,65 Q80,40 88,25 Q100,18 112,25 Q120,40 115,65Z' },
+      { id:'head', fill:'#22aa44', d:'M80,28 Q80,5 100,3 Q120,5 120,28 Q120,48 100,50 Q80,48 80,28Z' },
+      { id:'snout', fill:'#33bb55', d:'M88,38 L88,55 L112,55 L112,38Z' },
+      { id:'jaw', fill:'#22aa44', d:'M88,50 L88,62 L112,62 L112,50Z' },
+      { id:'eye-l', fill:'#ffff00', d:'M85,22 Q85,16 90,16 Q95,16 95,22 Q95,28 90,28 Q85,28 85,22Z' },
+      { id:'eye-r', fill:'#ffff00', d:'M105,22 Q105,16 110,16 Q115,16 115,22 Q115,28 110,28 Q105,28 105,22Z' },
+      { id:'pupil-l', fill:'#000000', d:'M88,22 Q88,19 90,19 Q92,19 92,22 Q92,25 90,25 Q88,25 88,22Z' },
+      { id:'pupil-r', fill:'#000000', d:'M108,22 Q108,19 110,19 Q112,19 112,22 Q112,25 110,25 Q108,25 108,22Z' },
+      { id:'nostril-l', fill:'#115522', d:'M92,44 Q92,41 94,41 Q96,41 96,44 Q96,47 94,47 Q92,47 92,44Z' },
+      { id:'nostril-r', fill:'#115522', d:'M104,44 Q104,41 106,41 Q108,41 108,44 Q108,47 106,47 Q104,47 104,44Z' },
+      { id:'wing-l', fill:'#116622', d:'M65,95 Q30,70 20,50 Q35,60 55,75 Q60,85 65,100Z' },
+      { id:'wing-r', fill:'#116622', d:'M135,95 Q170,70 180,50 Q165,60 145,75 Q140,85 135,100Z' },
+      { id:'wing-l-web', fill:'#228833', d:'M65,98 Q35,72 22,52 Q40,65 58,78Z' },
+      { id:'wing-r-web', fill:'#228833', d:'M135,98 Q165,72 178,52 Q160,65 142,78Z' },
+      { id:'tail', fill:'#22aa44', d:'M128,165 Q155,170 170,155 Q165,140 148,148 Q138,158 128,168Z' },
+      { id:'tail-tip', fill:'#33bb55', d:'M165,152 Q172,145 170,138 Q162,142 165,152Z' },
+      { id:'leg-l', fill:'#1a8833', d:'M72,160 L65,185 L80,185 L85,165Z' },
+      { id:'leg-r', fill:'#1a8833', d:'M128,160 L120,185 L135,185 L135,165Z' },
+      { id:'claw-l', fill:'#115522', d:'M64,184 L60,192 L67,192 L70,185Z M70,184 L68,192 L75,192 L76,185Z M76,184 L75,192 L82,192 L81,185Z' },
+      { id:'claw-r', fill:'#115522', d:'M119,184 L115,192 L122,192 L124,185Z M124,184 L122,192 L129,192 L130,185Z M130,184 L129,192 L136,192 L135,185Z' },
+      { id:'flame', fill:'#ff6600', d:'M100,58 Q92,68 88,80 Q96,72 100,78 Q104,72 112,80 Q108,68 100,58Z' },
+      { id:'flame-inner', fill:'#ffcc00', d:'M100,60 Q96,68 94,76 Q99,70 100,74 Q101,70 106,76 Q104,68 100,60Z' },
+      { id:'scale1', fill:'#115522', d:'M90,105 Q90,100 95,100 Q100,100 100,105 Q100,110 95,110 Q90,110 90,105Z' },
+      { id:'scale2', fill:'#115522', d:'M102,115 Q102,110 107,110 Q112,110 112,115 Q112,120 107,120 Q102,120 102,115Z' },
+      { id:'scale3', fill:'#115522', d:'M88,125 Q88,120 93,120 Q98,120 98,125 Q98,130 93,130 Q88,130 88,125Z' },
+    ]
+  },
+  {
+    name: 'Torta', icon: '🎂',
+    viewBox: '0 0 200 200',
+    parts: [
+      { id:'plate', fill:'#ffffff', d:'M20,175 Q20,190 100,192 Q180,190 180,175 Q180,168 100,166 Q20,168 20,175Z' },
+      { id:'cake-bot', fill:'#ff99cc', d:'M25,130 L25,175 Q25,182 100,182 Q175,182 175,175 L175,130Z' },
+      { id:'cake-mid', fill:'#ffccee', d:'M35,95 L35,132 Q35,138 100,138 Q165,138 165,132 L165,95Z' },
+      { id:'cake-top', fill:'#ff66aa', d:'M50,70 L50,97 Q50,102 100,102 Q150,102 150,97 L150,70Z' },
+      { id:'frosting-bot', fill:'#ffffff', d:'M25,128 Q62,122 100,126 Q138,122 175,128 Q138,134 100,130 Q62,134 25,128Z' },
+      { id:'frosting-mid', fill:'#ffffff', d:'M35,93 Q67,87 100,91 Q133,87 165,93 Q133,99 100,95 Q67,99 35,93Z' },
+      { id:'frosting-top', fill:'#ffffff', d:'M50,68 Q75,62 100,66 Q125,62 150,68 Q125,74 100,70 Q75,74 50,68Z' },
+      { id:'deco-bot1', fill:'#ff3399', d:'M40,145 Q40,140 45,140 Q50,140 50,145 Q50,150 45,150 Q40,150 40,145Z' },
+      { id:'deco-bot2', fill:'#ff3399', d:'M95,142 Q95,137 100,137 Q105,137 105,142 Q105,147 100,147 Q95,147 95,142Z' },
+      { id:'deco-bot3', fill:'#ff3399', d:'M150,145 Q150,140 155,140 Q160,140 160,145 Q160,150 155,150 Q150,150 150,145Z' },
+      { id:'deco-mid1', fill:'#cc0066', d:'M55,108 Q55,104 59,104 Q63,104 63,108 Q63,112 59,112 Q55,112 55,108Z' },
+      { id:'deco-mid2', fill:'#cc0066', d:'M97,106 Q97,102 101,102 Q105,102 105,106 Q105,110 101,110 Q97,110 97,106Z' },
+      { id:'deco-mid3', fill:'#cc0066', d:'M138,108 Q138,104 142,104 Q146,104 146,108 Q146,112 142,112 Q138,112 138,108Z' },
+      { id:'candle1', fill:'#ffff00', d:'M62,50 L62,70 L68,70 L68,50Z' },
+      { id:'candle2', fill:'#00ccff', d:'M88,45 L88,68 L94,68 L94,45Z' },
+      { id:'candle3', fill:'#ff6600', d:'M109,47 L109,68 L115,68 L115,47Z' },
+      { id:'candle4', fill:'#cc00ff', d:'M132,50 L132,70 L138,70 L138,50Z' },
+      { id:'flame1', fill:'#ff9900', d:'M65,50 Q62,42 65,36 Q68,42 65,50Z' },
+      { id:'flame2', fill:'#ff9900', d:'M91,45 Q88,37 91,31 Q94,37 91,45Z' },
+      { id:'flame3', fill:'#ff9900', d:'M112,47 Q109,39 112,33 Q115,39 112,47Z' },
+      { id:'flame4', fill:'#ff9900', d:'M135,50 Q132,42 135,36 Q138,42 135,50Z' },
+      { id:'star1', fill:'#ffff00', d:'M80,155 L81,158 L84,158 L82,160 L83,163 L80,161 L77,163 L78,160 L76,158 L79,158Z' },
+      { id:'star2', fill:'#ffff00', d:'M118,155 L119,158 L122,158 L120,160 L121,163 L118,161 L115,163 L116,160 L114,158 L117,158Z' },
+    ]
+  },
+];
+
+const canvas = document.getElementById('coloring-canvas');
+const ctx = canvas.getContext('2d');
+
+let currentColor = '#ff0000';
+let currentPic = 0;
+let fills = {}; // { partId: color }
+let svgPaths = {}; // { partId: Path2D }
+
+// ── INIT ──
+function init() {
+  buildPalette();
+  buildPicSelect();
+  setColor('#ff6600');
+  loadPicture(0);
+  window.addEventListener('resize', () => { resizeCanvas(); redraw(); });
+}
+
+function buildPalette() {
+  const pal = document.getElementById('palette');
+  pal.innerHTML = '';
+  PALETTE.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'pal-c';
+    d.style.background = c;
+    d.dataset.color = c;
+    d.onclick = () => setColor(c);
+    pal.appendChild(d);
+  });
+}
+
+function buildPicSelect() {
+  const sel = document.getElementById('pic-select');
+  sel.innerHTML = '';
+  PICTURES.forEach((pic, i) => {
+    const d = document.createElement('div');
+    d.className = 'pic-thumb' + (i === 0 ? ' active' : '');
+    d.textContent = pic.icon;
+    d.title = pic.name;
+    d.onclick = () => { loadPicture(i); };
+    sel.appendChild(d);
+  });
+}
+
+function setColor(c) {
+  currentColor = c;
+  document.getElementById('active-preview').style.background = c;
+  document.getElementById('custom-col').value = c;
+  document.querySelectorAll('.pal-c').forEach(el => {
+    el.classList.toggle('sel', el.dataset.color === c);
+  });
+}
+
+function loadPicture(idx) {
+  currentPic = idx;
+  fills = {}; // Minden fehérrel kezd — te szinezed ki!
+  const pic = PICTURES[idx];
+  document.getElementById('pic-title').textContent = pic.name;
+  // Thumbnails frissítése
+  document.querySelectorAll('.pic-thumb').forEach((el, i) => el.classList.toggle('active', i === idx));
+  resizeCanvas();
+  buildPaths();
+  redraw();
+}
+
+function resizeCanvas() {
+  const area = document.getElementById('canvas-area');
+  const avail = Math.min(area.clientWidth - 16, area.clientHeight - 16, 500);
+  canvas.width  = avail;
+  canvas.height = avail;
+}
+
+// Path2D építés — minden part-hoz
+function buildPaths() {
+  svgPaths = {};
+  const pic = PICTURES[currentPic];
+  const [vx, vy, vw, vh] = pic.viewBox.split(' ').map(Number);
+  const sx = canvas.width  / vw;
+  const sy = canvas.height / vh;
+
+  pic.parts.forEach(part => {
+    try {
+      const p = new Path2D(scalePath(part.d, sx, sy, vx, vy));
+      svgPaths[part.id] = p;
+    } catch(e) {}
+  });
+}
+
+// SVG path skálázása canvas mérethez
+function scalePath(d, sx, sy, ox, oy) {
+  // Számok helyettesítése skálázott értékekkel
+  // Egyszerű megközelítés: transform mátrix alkalmazása
+  return d; // Az SVG koordinátákat közvetlenül használjuk, transform-ot alkalmazzuk
+}
+
+// ── RAJZOLÁS ──
+function redraw() {
+  const pic = PICTURES[currentPic];
+  const [vx, vy, vw, vh] = pic.viewBox.split(' ').map(Number);
+  const sx = canvas.width  / vw;
+  const sy = canvas.height / vh;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Fehér háttér
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.scale(sx, sy);
+
+  pic.parts.forEach(part => {
+    const p = new Path2D(part.d);
+    const fillColor = fills[part.id] || (part.fill !== 'none' ? part.fill : null);
+
+    if(fillColor && part.fill !== 'none') {
+      ctx.fillStyle = fillColor;
+      ctx.fill(p);
+    }
+    // Körvonal
+    const stroke = part.stroke || '#222222';
+    if(part.fill === 'none' || true) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = part.fill === 'none' ? 1.5 : 1.2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke(p);
+    }
+  });
+
+  ctx.restore();
+}
+
+// ── KLIKK: melyik részre kattintott? ──
+function getClickedPart(cx, cy) {
+  const pic = PICTURES[currentPic];
+  const [vx, vy, vw, vh] = pic.viewBox.split(' ').map(Number);
+  const sx = canvas.width  / vw;
+  const sy = canvas.height / vh;
+
+  // Visszaskálázott koordináta
+  const svgX = cx / sx;
+  const svgY = cy / sy;
+
+  // Hátulról előre keressük (felső rétegek előbb)
+  for(let i = pic.parts.length - 1; i >= 0; i--) {
+    const part = pic.parts[i];
+    if(part.fill === 'none') continue; // csak kitölthető részek
+    const p = new Path2D(part.d);
+    // Ellenőrzés: a kattintás pont benne van-e (skálázatlan ctx-ben)
+    const tempCtx = document.createElement('canvas').getContext('2d');
+    tempCtx.canvas.width = vw;
+    tempCtx.canvas.height = vh;
+    if(tempCtx.isPointInPath(p, svgX, svgY)) {
+      return part.id;
+    }
+  }
+  return null;
+}
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const cy = (e.clientY - rect.top)  * (canvas.height / rect.height);
+  const partId = getClickedPart(cx, cy);
+  if(partId) {
+    fills[partId] = currentColor;
+    redraw();
+  }
+});
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const cx = (t.clientX - rect.left) * (canvas.width / rect.width);
+  const cy = (t.clientY - rect.top)  * (canvas.height / rect.height);
+  const partId = getClickedPart(cx, cy);
+  if(partId) {
+    fills[partId] = currentColor;
+    redraw();
+  }
+}, {passive:false});
+
+// ── GOMBOK ──
+function resetColors() {
+  fills = {}; // Visszaállítás: minden fehér lesz
+  redraw();
+  showToast('🗑 Visszaállítva!');
+}
+
+function downloadImg() {
+  const link = document.createElement('a');
+  link.download = PICTURES[currentPic].name + '-szinezes.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('💾 Kép letöltve!');
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+init();
+</script>
+</body>
+</html>
