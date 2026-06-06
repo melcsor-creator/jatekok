@@ -158,6 +158,10 @@
       100% { transform: scale(1) rotate(0deg); }
     }
     .die.bounce-anim { animation: dieBounce .5s ease forwards; }
+
+    /* Fejlesztési szint jelzők a mezőkön */
+    .sp-upgrades { display:flex; gap:1px; justify-content:center; flex-wrap:wrap; margin-top:1px; }
+    .sp-upg { font-size:.6rem; line-height:1; }
   </style>
 </head>
 <body>
@@ -200,6 +204,7 @@
             <div class="die" id="die2"></div>
           </div>
           <button id="roll-btn" onclick="rollDice()">🎲 Dobás!</button>
+          <button id="upgrade-btn" onclick="showUpgradePanel()" style="padding:8px 18px;border-radius:10px;border:1px solid #f5c842;background:rgba(245,200,66,.12);color:#f5c842;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:none;">🔨 Fejlesztés vásárlása</button>
           <div id="my-turn-hint"></div>
           <div id="log-box"></div>
         </div>
@@ -455,27 +460,6 @@ function initInviteListener() {
   });
 }
 
-// Megjegyzés: az összes Firestore hívás csak a firebase.js betöltése UTÁN
-window.addEventListener('load', () => {
-  setPresence();
-  setInterval(setPresence,20000);
-  initInviteListener();
-
-  // URL invite check
-  const urlParams=new URLSearchParams(window.location.search);
-  const urlInviteId=urlParams.get('inviteId');
-  if(urlInviteId){
-    currentInviteId=urlInviteId;
-    setTimeout(async()=>{
-      const snap=await db.collection('mono_invites').doc(urlInviteId).get();
-      const inv=snap.data();
-      if(inv&&inv.status==='pending'){
-        showInviteNotif(urlInviteId,inv.from);
-      }
-    },500);
-  }
-});
-
 function showInviteNotif(invId,fromName){
   currentInviteId=invId;
   document.getElementById('inv-title').textContent=fromName+' Monopoly játékra hív!';
@@ -628,11 +612,30 @@ function renderTokens(room){
 
 function renderOwned(room){
   const owned=room.owned||{};
-  // Clear
+  const upgrades=room.upgrades||{};
   document.querySelectorAll('.own-badge').forEach(el=>{el.style.display='none';});
+  // Upgrade icon reset
+  document.querySelectorAll('.sp-upg-icon').forEach(el=>el.remove());
+
   Object.entries(owned).forEach(([sid,pidx])=>{
     const el=document.getElementById('own-'+sid);
     if(el){el.style.display='block';el.style.background=room.players[pidx].color;}
+
+    // Fejlesztési szint ikon a mezőn
+    const level=upgrades[sid]||0;
+    if(level>0){
+      const spEl=document.getElementById('sp-'+sid);
+      if(spEl){
+        const icon=document.createElement('div');
+        icon.className='sp-upg-icon';
+        icon.style.cssText='font-size:.65rem;line-height:1;text-align:center;';
+        icon.textContent=UPGRADE_LEVELS[Math.min(level,UPGRADE_LEVELS.length-1)].icon;
+        // Szúrjuk be a saját badge elé
+        const badge=spEl.querySelector('.own-badge');
+        if(badge) spEl.insertBefore(icon,badge);
+        else spEl.appendChild(icon);
+      }
+    }
   });
 }
 
@@ -663,12 +666,25 @@ function updateTurnUI(room){
   const isMyTurn=(room.cur===myPlayerIdx);
   const hint=document.getElementById('my-turn-hint');
   const btn=document.getElementById('roll-btn');
+  const upgBtn=document.getElementById('upgrade-btn');
+
   if(isMyTurn&&room.status==='playing'&&!room.pendingAction){
     btn.disabled=false;
     hint.textContent='';
+    // Fejlesztés gomb: csak ha van fejleszthető ingatlanom
+    const owned=room.owned||{};
+    const upgrades=room.upgrades||{};
+    const canUpgrade=Object.entries(owned).some(([sid,pidx])=>{
+      if(pidx!==myPlayerIdx)return false;
+      const sp=SPACES[parseInt(sid)];
+      if(!sp||sp.type!=='prop'||sp.utility)return false;
+      return (upgrades[sid]||0)<UPGRADE_LEVELS.length-1;
+    });
+    if(upgBtn) upgBtn.style.display=canUpgrade?'block':'none';
   } else {
     btn.disabled=true;
     hint.textContent=isMyTurn?'Várd meg a modal bezárását...':p.name+' dob...';
+    if(upgBtn) upgBtn.style.display='none';
   }
 }
 
@@ -775,36 +791,49 @@ function computeAction(sp,spaceId,pidx,room){
     const ow=room.owned[spaceId];
     if(ow===undefined) return {type:'buyOffer',forPlayer:pidx,spaceId};
     if(ow===pidx)      return {type:'ownLand',forPlayer:pidx,spaceId};
-    const rent=sp.utility?(room.lastRoll[0]+room.lastRoll[1])*4:sp.rent;
+    const upgrades=room.upgrades||{};
+    const level=upgrades[spaceId]||0;
+    const mult=UPGRADE_LEVELS[Math.min(level,UPGRADE_LEVELS.length-1)].rentMult;
+    const baseRent=sp.utility?(room.lastRoll[0]+room.lastRoll[1])*4:sp.rent;
+    const rent=sp.utility?baseRent:Math.round(baseRent*mult);
     return {type:'payRent',forPlayer:pidx,spaceId,to:ow,amount:rent};
   }
   return {type:'endTurn',forPlayer:pidx};
 }
 
 // ── HANDLE PENDING ACTION (shown to the correct player) ──
+let processingAction = false;
+
 function handlePendingAction(action,room){
+  if(processingAction) return;
+
   const pidx=action.forPlayer;
   const p=room.players[pidx];
   const sp=action.spaceId!==undefined?SPACES[action.spaceId]:null;
 
   if(action.type==='endTurn'){
-    resolveEndTurn(room);return;
+    processingAction=true;
+    resolveEndTurn(room); return;
   }
   if(action.type==='ownLand'){
+    processingAction=true;
     addLog(p.name+' saját ingatlanán áll: '+sp.name);
-    resolveEndTurn(room);return;
+    resolveEndTurn(room); return;
   }
   if(action.type==='auctionBid'){
+    processingAction=false;
     showAuctionModal(room, action.spaceId, action.minBid, action.bids||{});
     return;
   }
   if(action.type==='gotojail'){
+    processingAction=false;
     playSound('jail');
     showM('👮 Börtönbe kerültél!',p.name+' bekerült a börtönbe!\n3 körön belül kell kiszabadulni.',null,[
       {t:'OK',c:'mb-ok',fn(){closeM();applyGotojail(room,pidx);}}
     ]);return;
   }
   if(action.type==='tax'){
+    processingAction=false;
     playSound('rent');
     floatMoney(-action.amount, p.color);
     showM('💸 '+SPACES[action.spaceId].name,p.name+' adót fizet.',action.amount.toLocaleString()+' Ft',[
@@ -812,6 +841,7 @@ function handlePendingAction(action,room){
     ]);return;
   }
   if(action.type==='chance'){
+    processingAction=false;
     playSound('chance');
     const c=action.card;
     showM('❓ Véletlen kártya',c.text,null,[
@@ -819,6 +849,7 @@ function handlePendingAction(action,room){
     ]);return;
   }
   if(action.type==='buyOffer'){
+    processingAction=false;
     const canBuy=p.money>=sp.price;
     const btns=[
       {t:'🔨 Aukció',c:'mb-skip',fn(){closeM();startAuction(room,action.spaceId);}},
@@ -832,6 +863,7 @@ function handlePendingAction(action,room){
     return;
   }
   if(action.type==='payRent'){
+    processingAction=false;
     playSound('rent');
     floatMoney(-action.amount, p.color);
     const owner=room.players[action.to];
@@ -839,6 +871,7 @@ function handlePendingAction(action,room){
       {t:'OK',c:'mb-ok',fn(){closeM();applyRent(room,pidx,action.to,action.amount);}}
     ]);return;
   }
+  processingAction=false;
 }
 
 // ── APPLY ACTIONS ──
@@ -927,10 +960,12 @@ async function applyRent(room,pidx,toIdx,amount){
 }
 
 async function resolveEndTurn(room){
+  processingAction=false;
   const next=1-room.cur;
   await db.collection('mono_rooms').doc(currentRoomId).update({
     cur:next,pendingAction:null
   });
+  processingAction=false;
 }
 
 async function commitUpdate(updates,room,pidx,extraAction){
@@ -1318,6 +1353,107 @@ function floatMoney(amount, color) {
   el.style.top  = (rect.top + rect.height) + 'px';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1300);
+}
+
+// ── FEJLESZTÉSI SZINTEK ──
+// Minden ingatlanhoz 3 szint: alap (0), fejlesztés1 (1), fejlesztés2 (2)
+const UPGRADE_LEVELS = [
+  { level:0, icon:'',   label:'Alap',        rentMult:1.0 },
+  { level:1, icon:'🚗', label:'Autó',         rentMult:1.8 },
+  { level:2, icon:'📺', label:'Berendezés',   rentMult:2.8 },
+  { level:3, icon:'🏗️', label:'Felújítás',    rentMult:4.5 },
+];
+const UPGRADE_COST_MULT = 0.6; // fejlesztés ára = ingatlan ár × 0.6
+
+function getUpgradeCost(sp) {
+  return Math.round(sp.price * UPGRADE_COST_MULT);
+}
+
+function getCurrentRent(sp, spaceId, upgrades) {
+  const level = (upgrades||{})[spaceId] || 0;
+  const mult = UPGRADE_LEVELS[Math.min(level, UPGRADE_LEVELS.length-1)].rentMult;
+  return sp.utility ? 0 : Math.round(sp.rent * mult);
+}
+
+function showUpgradePanel() {
+  if(!currentRoomId) return;
+  db.collection('mono_rooms').doc(currentRoomId).get().then(snap => {
+    const room = snap.data();
+    if(!room) return;
+    const owned = room.owned || {};
+    const upgrades = room.upgrades || {};
+    const p = room.players[myPlayerIdx];
+
+    // Az én ingatlanjaim ahol még lehet fejleszteni
+    const myProps = Object.entries(owned)
+      .filter(([sid, pidx]) => pidx === myPlayerIdx)
+      .map(([sid]) => parseInt(sid))
+      .filter(sid => {
+        const sp = SPACES[sid];
+        if(!sp || sp.type !== 'prop' || sp.utility) return false;
+        const level = upgrades[sid] || 0;
+        return level < UPGRADE_LEVELS.length - 1;
+      });
+
+    if(myProps.length === 0) {
+      showM('🔨 Fejlesztés', 'Nincs fejleszthető ingatlaned.\n(Minden ingatlanod el van adva, vagy már max szintű.)', null, [
+        {t:'OK', c:'mb-ok', fn(){closeM();}}
+      ]);
+      return;
+    }
+
+    // Lista az ingatlanokról
+    const list = myProps.map(sid => {
+      const sp = SPACES[sid];
+      const level = upgrades[sid] || 0;
+      const nextLevel = UPGRADE_LEVELS[level + 1];
+      const cost = getUpgradeCost(sp);
+      const canAfford = p.money >= cost;
+      const currentRent = getCurrentRent(sp, sid, upgrades);
+      const newRent = Math.round(sp.rent * nextLevel.rentMult);
+      return { sid, sp, level, nextLevel, cost, canAfford, currentRent, newRent };
+    });
+
+    // Megjelenítés
+    const bodyLines = list.map(u =>
+      u.sp.icon + ' ' + u.sp.name +
+      '\n  Jelenlegi bérleti díj: ' + u.currentRent.toLocaleString() + ' Ft' +
+      '\n  → ' + u.nextLevel.icon + ' ' + u.nextLevel.label + ': ' + u.newRent.toLocaleString() + ' Ft' +
+      '\n  Fejlesztés ára: ' + u.cost.toLocaleString() + ' Ft' + (u.canAfford ? '' : ' ❌')
+    ).join('\n\n');
+
+    const btns = list.filter(u => u.canAfford).map(u => ({
+      t: u.nextLevel.icon + ' ' + u.sp.name,
+      c: 'mb-buy',
+      fn() { closeM(); applyUpgrade(u.sid, u.cost, u.sp, u.level); }
+    }));
+    btns.push({t:'Bezár', c:'mb-skip', fn(){closeM();}});
+
+    showM('🔨 Fejlesztés vásárlása', bodyLines, null, btns);
+  });
+}
+
+async function applyUpgrade(spaceId, cost, sp, currentLevel) {
+  const snap = await db.collection('mono_rooms').doc(currentRoomId).get();
+  const room = snap.data();
+  if(!room) return;
+  if(room.cur !== myPlayerIdx) { alert('Csak a saját körödben fejleszthetsz!'); return; }
+
+  const updPlayers = [...room.players];
+  updPlayers[myPlayerIdx] = {...updPlayers[myPlayerIdx], money: updPlayers[myPlayerIdx].money - cost};
+
+  const updUpgrades = {...(room.upgrades||{}), [spaceId]: (currentLevel + 1)};
+  const newLevel = UPGRADE_LEVELS[currentLevel + 1];
+  const newLog = [...(room.log||[]), '🔨 ' + room.players[myPlayerIdx].name + ' fejlesztette: ' + sp.name + ' → ' + newLevel.icon + ' ' + newLevel.label + ' (' + cost.toLocaleString() + ' Ft)'];
+
+  playSound('buy');
+  floatMoney(-cost, room.players[myPlayerIdx].color);
+
+  await db.collection('mono_rooms').doc(currentRoomId).update({
+    players: updPlayers,
+    upgrades: updUpgrades,
+    log: newLog
+  });
 }
 
 function r1(){return Math.ceil(Math.random()*6);}

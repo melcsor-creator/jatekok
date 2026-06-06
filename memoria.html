@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Online Játékok – Memória</title>
+  <link rel="stylesheet" href="style.css?v=9"/>
+  <style>
+    .site-header{display:none;}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#0d0d1a;color:#e8e8f5;font-family:'Segoe UI',sans-serif;min-height:100vh;}
+
+    /* ── SETUP ── */
+    #setup-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;}
+    #setup-screen h1{font-size:2rem;font-weight:900;background:linear-gradient(135deg,#7c5cfc,#c45cfc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .diff-card{width:100%;max-width:380px;background:#1a1a35;border:2px solid transparent;border-radius:16px;padding:20px 22px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:16px;}
+    .diff-card:hover{border-color:#7c5cfc;transform:translateY(-2px);}
+    .diff-card .dc-icon{font-size:2.2rem;flex-shrink:0;}
+    .diff-card .dc-title{font-size:1.1rem;font-weight:800;}
+    .diff-card .dc-desc{font-size:.82rem;color:#8888aa;margin-top:3px;}
+
+    /* ── GAME ── */
+    #game-screen{display:none;flex-direction:column;min-height:100vh;}
+    #top-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(13,13,26,.97);border-bottom:1px solid #2e2e5e;position:sticky;top:0;z-index:50;}
+    #top-bar a{color:#8888aa;font-size:.82rem;text-decoration:none;}
+    #hud{display:flex;gap:16px;align-items:center;}
+    .hud-item{text-align:center;}
+    .hud-val{font-size:1.3rem;font-weight:900;color:#7c5cfc;}
+    .hud-lbl{font-size:.65rem;color:#8888aa;}
+    .hud-val.gold{color:#f5c842;}
+    .hud-val.green{color:#5cfc8e;}
+
+    /* ── GRID ── */
+    #grid-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:16px;}
+    #card-grid{display:grid;gap:10px;}
+
+    .mem-card{
+      aspect-ratio:1;
+      cursor:pointer;
+      perspective:600px;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .card-inner{
+      width:100%;height:100%;
+      position:relative;
+      transition:transform .4s cubic-bezier(.4,0,.2,1);
+      transform-style:preserve-3d;
+    }
+    .mem-card.flipped .card-inner{transform:rotateY(180deg);}
+    .mem-card.matched .card-inner{transform:rotateY(180deg);}
+
+    .card-front,.card-back{
+      position:absolute;inset:0;
+      border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      backface-visibility:hidden;
+      -webkit-backface-visibility:hidden;
+    }
+    .card-back{
+      background:linear-gradient(135deg,#1e1e3a,#2a2a4e);
+      border:2px solid #3a3a6e;
+      font-size:2.5rem;
+      color:#4a4a7e;
+    }
+    .card-front{
+      border:2px solid #7c5cfc;
+      transform:rotateY(180deg);
+      overflow:hidden;
+      background:#111;
+    }
+    /* A kép kitölti a kártya elejét */
+    .card-front img{
+      width:100%;height:100%;
+      object-fit:cover;
+      border-radius:10px;
+      display:block;
+    }
+    .mem-card.matched .card-front{
+      border-color:#5cfc8e;
+      box-shadow:0 0 16px rgba(92,252,142,.35);
+    }
+    /* Zöld pipa találatnál */
+    .mem-card.matched .card-front::after{
+      content:'✓';
+      position:absolute;
+      top:4px;right:6px;
+      font-size:1rem;
+      font-weight:900;
+      color:#5cfc8e;
+      text-shadow:0 0 6px rgba(92,252,142,.8);
+    }
+    .mem-card:not(.matched):not(.flipped) .card-back:hover{
+      border-color:#7c5cfc;
+      background:linear-gradient(135deg,#22223e,#2e2e52);
+    }
+
+    /* ── RESULT ── */
+    #result-screen{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;align-items:center;justify-content:center;}
+    #result-screen.show{display:flex;}
+    .res-box{background:#1a1a35;border:2px solid #f5c842;border-radius:20px;padding:36px 28px;max-width:360px;width:92%;text-align:center;}
+    .res-box .ri{font-size:3.5rem;margin-bottom:10px;}
+    .res-box h2{font-size:1.6rem;font-weight:900;margin-bottom:6px;}
+    .res-stats{display:flex;gap:20px;justify-content:center;margin:18px 0;}
+    .res-stat .rv{font-size:2rem;font-weight:900;color:#7c5cfc;}
+    .res-stat .rl{font-size:.75rem;color:#8888aa;}
+    .res-stat .rv.gold{color:#f5c842;}
+
+    /* Toplista */
+    .res-lb{margin:14px 0 20px;text-align:left;}
+    .res-lb .lb-title{font-size:.72rem;color:#8888aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;text-align:center;}
+    .res-lb .lb-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;font-size:.82rem;margin-bottom:3px;}
+    .res-lb .lb-row.me{background:rgba(124,92,252,.18);border:1px solid rgba(124,92,252,.4);}
+    .res-lb .lb-pos{width:22px;color:#8888aa;font-size:.75rem;}
+    .res-lb .lb-name{flex:1;font-weight:700;}
+    .res-lb .lb-score{color:#f5c842;font-weight:800;}
+
+    .res-btn{padding:12px 26px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c5cfc,#c45cfc);color:#fff;font-size:.95rem;font-weight:800;cursor:pointer;font-family:inherit;margin:4px;}
+    .res-btn2{padding:12px 20px;border-radius:12px;border:1px solid #2e2e5e;background:transparent;color:#8888aa;font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;margin:4px;}
+
+    /* Animációk */
+    @keyframes cardMatch{
+      0%{transform:rotateY(180deg) scale(1);}
+      50%{transform:rotateY(180deg) scale(1.15);}
+      100%{transform:rotateY(180deg) scale(1);}
+    }
+    .mem-card.match-anim .card-inner{animation:cardMatch .35s ease;}
+    @keyframes cardWrong{
+      0%,100%{transform:rotateY(180deg) translateX(0);}
+      25%{transform:rotateY(180deg) translateX(-6px);}
+      75%{transform:rotateY(180deg) translateX(6px);}
+    }
+    .mem-card.wrong-anim .card-inner{animation:cardWrong .35s ease;}
+
+    /* Idő sáv */
+    #timer-bar-wrap{padding:0 16px 8px;}
+    #timer-bar-bg{height:6px;background:#2e2e5e;border-radius:3px;overflow:hidden;}
+    #timer-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#5cfc8e,#f5c842,#fc5c5c);transition:width .2s linear;}
+  </style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup-screen">
+  <div style="font-size:3rem">🧠</div>
+  <h1>Memória</h1>
+  <p style="color:#8888aa;font-size:.92rem;">Találd meg az összes párt!</p>
+
+  <div class="diff-card" onclick="startGame('easy')">
+    <div class="dc-icon">🟢</div>
+    <div>
+      <div class="dc-title">Könnyű</div>
+      <div class="dc-desc">4×4 rács · 8 pár · 120 mp</div>
+    </div>
+  </div>
+  <div class="diff-card" onclick="startGame('medium')">
+    <div class="dc-icon">🟡</div>
+    <div>
+      <div class="dc-title">Közepes</div>
+      <div class="dc-desc">4×5 rács · 10 pár · 90 mp</div>
+    </div>
+  </div>
+  <div class="diff-card" onclick="startGame('hard')">
+    <div class="dc-icon">🔴</div>
+    <div>
+      <div class="dc-title">Nehéz</div>
+      <div class="dc-desc">5×6 rács · 15 pár · 75 mp</div>
+    </div>
+  </div>
+
+  <a href="index.html" style="color:#8888aa;font-size:.85rem;margin-top:4px;">← Vissza a főmenübe</a>
+</div>
+
+<!-- GAME -->
+<div id="game-screen">
+  <div id="top-bar">
+    <a href="index.html">← Főoldal</a>
+    <div id="hud">
+      <div class="hud-item">
+        <div class="hud-val" id="hud-pairs">0/0</div>
+        <div class="hud-lbl">pár</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-val gold" id="hud-moves">0</div>
+        <div class="hud-lbl">lépés</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-val green" id="hud-timer">--</div>
+        <div class="hud-lbl">mp</div>
+      </div>
+    </div>
+    <button onclick="setupScreen()" style="background:none;border:1px solid #2e2e5e;color:#8888aa;border-radius:8px;padding:5px 12px;font-size:.78rem;cursor:pointer;font-family:inherit;">Újrakezdés</button>
+  </div>
+  <div id="timer-bar-wrap">
+    <div id="timer-bar-bg"><div id="timer-bar-fill" style="width:100%"></div></div>
+  </div>
+  <div id="grid-wrap">
+    <div id="card-grid"></div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div id="result-screen">
+  <div class="res-box">
+    <div class="ri" id="res-icon">🎉</div>
+    <h2 id="res-title">Gratulálok!</h2>
+    <p id="res-sub" style="color:#8888aa;font-size:.88rem;"></p>
+    <div class="res-stats">
+      <div class="res-stat"><div class="rv" id="res-moves">0</div><div class="rl">lépés</div></div>
+      <div class="res-stat"><div class="rv gold" id="res-time">0</div><div class="rl">másodperc</div></div>
+      <div class="res-stat"><div class="rv" style="color:#c45cfc;" id="res-score">0</div><div class="rl">pontszám</div></div>
+    </div>
+    <div class="res-lb">
+      <div class="lb-title">🏆 Toplista</div>
+      <div id="res-lb-rows"><div style="color:#8888aa;font-size:.8rem;text-align:center;">Betöltés...</div></div>
+    </div>
+    <div>
+      <button class="res-btn" id="res-play-again">▶ Újra</button>
+      <button class="res-btn2" onclick="setupScreen()">Nehézség</button>
+      <button class="res-btn2" onclick="location.href='index.html'">Főoldal</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+<script>
+const SESSION_KEY='doorpuzzle_session';
+const username=localStorage.getItem(SESSION_KEY)||'Vendég';
+
+// Presence
+if(typeof db!=='undefined'){
+  db.collection('presence').doc(username).set({name:username,online:true,where:'memória',since:Date.now()}).catch(()=>{});
+  setInterval(()=>db.collection('presence').doc(username).set({name:username,online:true,where:'memória',since:Date.now()}).catch(()=>{}),20000);
+  window.addEventListener('beforeunload',()=>db.collection('presence').doc(username).delete().catch(()=>{}));
+}
+
+// Picsum képek párokhoz — fix seed-ek hogy szépek legyenek
+const ALL_IMAGES = [
+  10,20,30,40,50,60,70,80,90,100,
+  110,120,130,140,150,160,170,180,190,200,
+  210,220,230,240,250,260,270,280,290,300,
+  310,320,330,340,350,360,370,380,390,400,
+  410,420,430,440,450,460,470,480,490,500,
+];
+
+function getImageUrl(seed, size) {
+  return 'https://picsum.photos/seed/' + seed + '/' + size + '/' + size;
+}
+
+const DIFF = {
+  easy:   { cols:4, rows:4, pairs:8,  time:120, label:'Könnyű' },
+  medium: { cols:5, rows:4, pairs:10, time:90,  label:'Közepes' },
+  hard:   { cols:6, rows:5, pairs:15, time:75,  label:'Nehéz'  },
+};
+
+let currentDiff='easy';
+let cards=[];           // [{id, emoji, matched, flipped}]
+let flipped=[];         // max 2 kártyaindex
+let matchedCount=0;
+let moves=0;
+let timerInterval=null;
+let timeLeft=0;
+let totalTime=0;
+let gameActive=false;
+let canFlip=true;
+
+function setupScreen(){
+  clearTimer();
+  gameActive=false;
+  document.getElementById('setup-screen').style.display='flex';
+  document.getElementById('game-screen').style.display='none';
+  document.getElementById('result-screen').classList.remove('show');
+}
+
+function startGame(diff){
+  currentDiff=diff;
+  const cfg=DIFF[diff];
+  clearTimer();
+  gameActive=false;
+  canFlip=true;
+  moves=0;
+  matchedCount=0;
+  flipped=[];
+  timeLeft=cfg.time;
+  totalTime=cfg.time;
+
+  // Kártyák generálása képekkel
+  const imgSeeds = shuffle([...ALL_IMAGES]).slice(0, cfg.pairs);
+  const deck = shuffle([...imgSeeds, ...imgSeeds]).map((seed, i) => ({
+    id: i, seed, matched: false, flipped: false
+  }));
+  cards = deck;
+
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('game-screen').style.display='flex';
+  document.getElementById('result-screen').classList.remove('show');
+
+  // Grid méret
+  const grid=document.getElementById('card-grid');
+  grid.style.gridTemplateColumns=`repeat(${cfg.cols},1fr)`;
+
+  // Méret számítás
+  const wrapEl=document.getElementById('grid-wrap');
+  const availW=wrapEl.clientWidth-32;
+  const availH=wrapEl.clientHeight-32;
+  const cellW=Math.floor(Math.min(availW/cfg.cols, availH/cfg.rows, 110));
+  grid.style.width=(cellW*cfg.cols + (cfg.cols-1)*10)+'px';
+
+  buildGrid(cellW);
+  updateHUD();
+  updateTimerBar();
+  startTimer();
+}
+
+function buildGrid(cellSize){
+  const grid=document.getElementById('card-grid');
+  grid.innerHTML='';
+  cards.forEach((_,i)=>{
+    const card=document.createElement('div');
+    card.className='mem-card';
+    card.style.width=cellSize+'px';
+    const imgUrl=getImageUrl(cards[i].seed, Math.round(cellSize*1.5));
+    card.innerHTML=`<div class="card-inner">
+      <div class="card-front"><img src="${imgUrl}" alt="kártya" loading="lazy"/></div>
+      <div class="card-back">🎴</div>
+    </div>`;
+    card.addEventListener('click',()=>flipCard(i));
+    card.id='card-'+i;
+    grid.appendChild(card);
+  });
+}
+
+function flipCard(idx){
+  if(!canFlip||!gameActive&&moves>0)return;
+  if(!gameActive){gameActive=true;}
+  const card=cards[idx];
+  if(card.matched||card.flipped)return;
+  if(flipped.length>=2)return;
+
+  card.flipped=true;
+  document.getElementById('card-'+idx).classList.add('flipped');
+  flipped.push(idx);
+
+  if(flipped.length===2){
+    moves++;
+    updateHUD();
+    canFlip=false;
+    setTimeout(()=>checkMatch(),700);
+  }
+}
+
+function checkMatch(){
+  const [a,b]=flipped;
+  if(cards[a].seed===cards[b].seed){
+    // Találat!
+    cards[a].matched=true;
+    cards[b].matched=true;
+    matchedCount++;
+    const elA=document.getElementById('card-'+a);
+    const elB=document.getElementById('card-'+b);
+    elA.classList.add('matched','match-anim');
+    elB.classList.add('matched','match-anim');
+    setTimeout(()=>{elA.classList.remove('match-anim');elB.classList.remove('match-anim');},400);
+    flipped=[];
+    canFlip=true;
+    updateHUD();
+    if(matchedCount===DIFF[currentDiff].pairs) setTimeout(()=>endGame(true),500);
+  } else {
+    // Nem találat
+    const elA=document.getElementById('card-'+a);
+    const elB=document.getElementById('card-'+b);
+    elA.classList.add('wrong-anim');
+    elB.classList.add('wrong-anim');
+    setTimeout(()=>{
+      elA.classList.remove('wrong-anim','flipped');
+      elB.classList.remove('wrong-anim','flipped');
+      cards[a].flipped=false;
+      cards[b].flipped=false;
+      flipped=[];
+      canFlip=true;
+    },500);
+  }
+}
+
+function startTimer(){
+  updateTimerBar();
+  timerInterval=setInterval(()=>{
+    timeLeft=Math.max(0,timeLeft-1);
+    document.getElementById('hud-timer').textContent=timeLeft;
+    updateTimerBar();
+    if(timeLeft<=0){
+      clearTimer();
+      endGame(false);
+    }
+  },1000);
+}
+
+function clearTimer(){
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+}
+
+function updateTimerBar(){
+  const pct=(timeLeft/totalTime)*100;
+  document.getElementById('timer-bar-fill').style.width=pct+'%';
+  const el=document.getElementById('hud-timer');
+  if(el) el.textContent=timeLeft;
+}
+
+function updateHUD(){
+  document.getElementById('hud-pairs').textContent=matchedCount+'/'+DIFF[currentDiff].pairs;
+  document.getElementById('hud-moves').textContent=moves;
+  document.getElementById('hud-timer').textContent=timeLeft;
+}
+
+function calcScore(won){
+  if(!won)return 0;
+  const timeBonus=Math.round(timeLeft*10);
+  const movesPenalty=Math.max(0,moves-DIFF[currentDiff].pairs)*5;
+  const diffBonus={easy:0,medium:200,hard:500}[currentDiff]||0;
+  return Math.max(0, 1000 + timeBonus - movesPenalty + diffBonus);
+}
+
+async function endGame(won){
+  clearTimer();
+  gameActive=false;
+  const timeUsed=totalTime-timeLeft;
+  const score=calcScore(won);
+
+  document.getElementById('res-icon').textContent=won?'🎉':'⏰';
+  document.getElementById('res-title').textContent=won?'Gratulálok!':'Lejárt az idő!';
+  document.getElementById('res-sub').textContent=won
+    ?DIFF[currentDiff].label+' szint teljesítve!'
+    :'Nem sikerült időre megtalálni az összes párt.';
+  document.getElementById('res-moves').textContent=moves;
+  document.getElementById('res-time').textContent=timeUsed;
+  document.getElementById('res-score').textContent=score.toLocaleString();
+
+  document.getElementById('res-play-again').onclick=()=>{
+    document.getElementById('result-screen').classList.remove('show');
+    startGame(currentDiff);
+  };
+
+  document.getElementById('result-screen').classList.add('show');
+
+  // Mentés + toplista
+  if(won&&score>0&&typeof db!=='undefined'){
+    const key='memScore_'+currentDiff;
+    try{
+      const snap=await db.collection('users').doc(username).get();
+      if(snap.exists){
+        const prev=snap.data()[key]||0;
+        if(score>prev){
+          await db.collection('users').doc(username).update({[key]:score});
+        }
+      }
+    }catch(e){}
+  }
+  loadLeaderboard();
+}
+
+async function loadLeaderboard(){
+  const container=document.getElementById('res-lb-rows');
+  const key='memScore_'+currentDiff;
+  try{
+    const snap=await db.collection('users').get();
+    const list=[];
+    snap.forEach(d=>{
+      const u=d.data();
+      if(u[key]&&u[key]>0) list.push({name:u.name,score:u[key]});
+    });
+    list.sort((a,b)=>b.score-a.score);
+    if(list.length===0){container.innerHTML='<div style="color:#8888aa;font-size:.8rem;text-align:center;">Még nincs rekord</div>';return;}
+    const medals=['🥇','🥈','🥉'];
+    container.innerHTML=list.slice(0,6).map((u,i)=>{
+      const isMe=u.name===username;
+      return '<div class="lb-row'+(isMe?' me':'')+'">' +
+        '<span class="lb-pos">'+(medals[i]||(i+1)+'.')+'</span>' +
+        '<span class="lb-name">'+u.name+(isMe?' <span style="font-size:.65rem;color:#7c5cfc">(Te)</span>':'')+'</span>' +
+        '<span class="lb-score">'+u.score.toLocaleString()+'</span>' +
+      '</div>';
+    }).join('');
+  }catch(e){
+    container.innerHTML='<div style="color:#8888aa;font-size:.8rem;text-align:center;">Hiba</div>';
+  }
+}
+
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+// Méret frissítés ablak resize-kor
+window.addEventListener('resize',()=>{
+  if(document.getElementById('game-screen').style.display==='flex'&&gameActive===false&&moves===0){
+    startGame(currentDiff);
+  }
+});
+</script>
+</body>
+</html>
