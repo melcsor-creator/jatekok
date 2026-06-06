@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Online Játékok – Kaparós</title>
+  <link rel="stylesheet" href="style.css?v=9"/>
+  <style>
+    .site-header{display:none;}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#0d0d1a;color:#e8e8f5;font-family:'Segoe UI',sans-serif;min-height:100vh;}
+
+    /* HEADER */
+    #header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(13,13,26,.97);border-bottom:1px solid #2e2e5e;position:sticky;top:0;z-index:50;}
+    #header a{color:#8888aa;font-size:.82rem;text-decoration:none;}
+    #balance-display{font-size:1.1rem;font-weight:900;color:#f5c842;}
+    #daily-badge{font-size:.72rem;background:rgba(92,252,142,.15);border:1px solid #5cfc8e;color:#5cfc8e;border-radius:999px;padding:3px 10px;cursor:pointer;}
+    #daily-badge.used{opacity:.4;cursor:not-allowed;}
+
+    /* SHOP */
+    #shop{padding:16px;max-width:480px;margin:0 auto;}
+    #shop h2{font-size:1rem;font-weight:900;color:#8888aa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;}
+
+    .ticket-shop-card{
+      background:#1a1a35;border:2px solid #2e2e5e;border-radius:16px;
+      padding:16px 18px;margin-bottom:12px;cursor:pointer;transition:all .2s;
+      display:flex;align-items:center;gap:14px;
+    }
+    .ticket-shop-card:hover{border-color:#7c5cfc;transform:translateY(-2px);}
+    .ticket-shop-card.disabled{opacity:.4;cursor:not-allowed;transform:none;}
+    .tsc-icon{font-size:2.5rem;flex-shrink:0;}
+    .tsc-info{flex:1;}
+    .tsc-name{font-size:1rem;font-weight:800;}
+    .tsc-desc{font-size:.78rem;color:#8888aa;margin-top:2px;}
+    .tsc-maxwin{font-size:.75rem;color:#f5c842;margin-top:3px;}
+    .tsc-price{font-size:1.1rem;font-weight:900;color:#f5c842;flex-shrink:0;}
+
+    /* Ingyenes napi */
+    .free-banner{
+      background:linear-gradient(135deg,rgba(92,252,142,.1),rgba(92,252,142,.05));
+      border:2px solid #5cfc8e;border-radius:16px;padding:14px 18px;
+      margin-bottom:16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s;
+    }
+    .free-banner:hover{transform:translateY(-2px);}
+    .free-banner.used{opacity:.45;cursor:not-allowed;transform:none;}
+    #free-timer{font-size:.75rem;color:#5cfc8e;}
+
+    /* SCRATCH OVERLAY */
+    #scratch-overlay{
+      display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;
+      align-items:center;justify-content:center;
+    }
+    #scratch-overlay.show{display:flex;}
+    #scratch-box{
+      background:#12122a;border:2px solid #7c5cfc;border-radius:22px;
+      padding:24px 20px;max-width:360px;width:94%;text-align:center;
+    }
+    #scratch-box h3{font-size:1.1rem;font-weight:900;margin-bottom:4px;}
+    #scratch-box p{color:#8888aa;font-size:.82rem;margin-bottom:16px;}
+
+    .scratch-grid{display:grid;gap:8px;margin-bottom:14px;}
+    .scratch-cell{
+      aspect-ratio:1;border-radius:10px;overflow:hidden;
+      position:relative;cursor:crosshair;
+      background:#2a2a4e;border:1px solid #3a3a6e;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .cell-symbol{
+      position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      font-size:1.6rem;font-weight:900;background:#2a2a4e;z-index:1;
+    }
+    .scratch-cell canvas{position:absolute;inset:0;z-index:2;cursor:crosshair;}
+    .scratch-cell.revealed .cell-symbol{background:transparent;}
+
+    /* Eredmény */
+    #scratch-result{margin:10px 0;min-height:40px;}
+    .win-banner{
+      background:linear-gradient(135deg,rgba(245,200,66,.15),rgba(245,200,66,.05));
+      border:2px solid #f5c842;border-radius:12px;padding:12px;
+      font-size:1.1rem;font-weight:900;color:#f5c842;
+      animation:winPop .4s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes winPop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+    .lose-banner{color:#8888aa;font-size:.9rem;padding:8px;}
+
+    .sclose-btn{
+      padding:10px 28px;border-radius:12px;border:none;
+      background:linear-gradient(135deg,#7c5cfc,#c45cfc);color:#fff;
+      font-size:.95rem;font-weight:800;cursor:pointer;font-family:inherit;
+    }
+
+    /* Confetti */
+    .confetti-piece{position:fixed;pointer-events:none;z-index:9999;animation:confettiFall 1.4s ease-in forwards;}
+    @keyframes confettiFall{to{transform:translateY(105vh) rotate(720deg);opacity:0;}}
+
+    /* Toast */
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a35;border:1px solid #7c5cfc;border-radius:10px;padding:10px 20px;font-size:.85rem;font-weight:700;z-index:9999;animation:toastIn .3s ease;pointer-events:none;}
+    @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+    /* Win history */
+    #history{padding:0 16px 80px;max-width:480px;margin:0 auto;}
+    #history h2{font-size:1rem;font-weight:900;color:#8888aa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+    .hist-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#1a1a35;border-radius:10px;margin-bottom:6px;font-size:.82rem;}
+    .hist-icon{font-size:1.2rem;}
+    .hist-name{flex:1;color:#8888aa;}
+    .hist-win{font-weight:700;}
+    .hist-win.pos{color:#f5c842;}
+    .hist-win.neg{color:#fc5c5c;}
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <a href="index.html">← Főoldal</a>
+  <div style="text-align:center;">
+    <div id="balance-display">0 ⭐</div>
+    <div style="font-size:.65rem;color:#8888aa;">egyenleg</div>
+  </div>
+  <div id="daily-badge" onclick="claimDaily()">🎁 Napi ajándék</div>
+</div>
+
+<div id="shop">
+  <div class="free-banner" id="free-card" onclick="openFree()">
+    <div style="font-size:2.2rem;">🎁</div>
+    <div style="flex:1;">
+      <div style="font-weight:800;font-size:.95rem;">Ingyenes napi sorsjegy</div>
+      <div style="font-size:.78rem;color:#5cfc8e;margin-top:2px;" id="free-status">Elérhető most!</div>
+    </div>
+    <div style="font-size:1rem;font-weight:900;color:#5cfc8e;">INGYENES</div>
+  </div>
+
+  <h2>Sorsjegyek vásárlása</h2>
+
+  <div class="ticket-shop-card" id="buy-basic" onclick="buyTicket('basic')">
+    <div class="tsc-icon">🟡</div>
+    <div class="tsc-info">
+      <div class="tsc-name">Alap sorsjegy</div>
+      <div class="tsc-desc">3×3 rács · 3 egyforma = nyeremény</div>
+      <div class="tsc-maxwin">Max nyeremény: 500 ⭐</div>
+    </div>
+    <div class="tsc-price">50 ⭐</div>
+  </div>
+
+  <div class="ticket-shop-card" id="buy-silver" onclick="buyTicket('silver')">
+    <div class="tsc-icon">⚪</div>
+    <div class="tsc-info">
+      <div class="tsc-name">Ezüst sorsjegy</div>
+      <div class="tsc-desc">4×3 rács · párokat kell találni</div>
+      <div class="tsc-maxwin">Max nyeremény: 2 000 ⭐</div>
+    </div>
+    <div class="tsc-price">150 ⭐</div>
+  </div>
+
+  <div class="ticket-shop-card" id="buy-gold" onclick="buyTicket('gold')">
+    <div class="tsc-icon">🏆</div>
+    <div class="tsc-info">
+      <div class="tsc-name">Arany sorsjegy</div>
+      <div class="tsc-desc">4×4 rács · összeadós nyeremény</div>
+      <div class="tsc-maxwin">Max nyeremény: 10 000 ⭐</div>
+    </div>
+    <div class="tsc-price">500 ⭐</div>
+  </div>
+</div>
+
+<div id="history">
+  <h2>Előzmények</h2>
+  <div id="hist-list"></div>
+</div>
+
+<!-- SCRATCH OVERLAY -->
+<div id="scratch-overlay">
+  <div id="scratch-box">
+    <h3 id="sbox-title">🎟️ Sorsjegy</h3>
+    <p id="sbox-desc">Kapard le az összes mezőt!</p>
+    <div class="scratch-grid" id="scratch-grid"></div>
+    <div id="scratch-result"></div>
+    <button class="sclose-btn" id="sclose-btn" style="display:none;" onclick="closeTicket()">OK, bezár</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+<script>
+const SESSION_KEY = 'doorpuzzle_session';
+const username = localStorage.getItem(SESSION_KEY) || 'Vendég';
+const DAILY_KEY = 'kaparos_daily_' + username;
+
+// Presence
+if(typeof db !== 'undefined') {
+  db.collection('presence').doc(username).set({name:username,online:true,where:'kaparós',since:Date.now()}).catch(()=>{});
+}
+
+// ── TICKET TÍPUSOK ──
+const TICKETS = {
+  free: {
+    name: 'Ingyenes sorsjegy', icon: '🎁',
+    cols: 3, rows: 3, type: 'triple',
+    price: 0,
+    prizes: [0,0,0,25,50,100,200,500],
+    symbols: ['⭐','💎','🍀','🎯','🔥','🍒','💰','🎰'],
+  },
+  basic: {
+    name: 'Alap sorsjegy', icon: '🟡',
+    cols: 3, rows: 3, type: 'triple',
+    price: 50,
+    prizes: [0,0,0,30,75,150,300,500],
+    symbols: ['⭐','💎','🍀','🎯','🔥','🍒','💰','🎰'],
+  },
+  silver: {
+    name: 'Ezüst sorsjegy', icon: '⚪',
+    cols: 4, rows: 3, type: 'pairs',
+    price: 150,
+    prizes: {2:100, 3:300, 4:500, 5:1000, 6:2000},
+    symbols: ['🐱','🐶','🦊','🐻','🐼','🦁'],
+  },
+  gold: {
+    name: 'Arany sorsjegy', icon: '🏆',
+    cols: 4, rows: 4, type: 'sum',
+    price: 500,
+    multipliers: [1,2,3,5,10,20,50,100],
+  },
+};
+
+let balance = 0;
+let history = [];
+let currentTicket = null;
+let scratchedCells = new Set();
+let totalCells = 0;
+let ticketRevealed = false;
+let isDrawing = false;
+
+// ── EGYENLEG ──
+async function loadBalance() {
+  try {
+    const snap = await db.collection('users').doc(username).get();
+    if(snap.exists) {
+      balance = snap.data().coins || 0;
+    }
+  } catch(e) {
+    balance = parseInt(localStorage.getItem('kaparos_balance_'+username) || '200');
+  }
+  updateBalanceDisplay();
+  checkDailyStatus();
+  updateShopButtons();
+}
+
+function updateBalanceDisplay() {
+  document.getElementById('balance-display').textContent = balance.toLocaleString() + ' ⭐';
+}
+
+async function addBalance(amount) {
+  balance += amount;
+  updateBalanceDisplay();
+  updateShopButtons();
+  try {
+    await db.collection('users').doc(username).update({
+      coins: firebase.firestore.FieldValue.increment(amount)
+    });
+  } catch(e) {
+    localStorage.setItem('kaparos_balance_'+username, balance);
+  }
+}
+
+function updateShopButtons() {
+  Object.entries(TICKETS).forEach(([key, t]) => {
+    const el = document.getElementById('buy-'+key);
+    if(el) el.classList.toggle('disabled', balance < t.price);
+  });
+}
+
+// ── NAPI AJÁNDÉK ──
+function checkDailyStatus() {
+  const last = localStorage.getItem(DAILY_KEY);
+  const today = new Date().toDateString();
+  const used = last === today;
+  const badge = document.getElementById('daily-badge');
+  const freeCard = document.getElementById('free-card');
+  const freeStatus = document.getElementById('free-status');
+  badge.classList.toggle('used', used);
+  freeCard.classList.toggle('used', used);
+  if(used) {
+    freeStatus.textContent = 'Holnap újra elérhető';
+    freeStatus.style.color = '#8888aa';
+  } else {
+    freeStatus.textContent = 'Elérhető most!';
+    freeStatus.style.color = '#5cfc8e';
+  }
+}
+
+function claimDaily() {
+  const last = localStorage.getItem(DAILY_KEY);
+  const today = new Date().toDateString();
+  if(last === today) { showToast('Holnap újra elérhető!'); return; }
+  localStorage.setItem(DAILY_KEY, today);
+  addBalance(100);
+  checkDailyStatus();
+  showToast('🎁 +100 ⭐ napi ajándék!');
+}
+
+function openFree() {
+  const last = localStorage.getItem(DAILY_KEY);
+  const today = new Date().toDateString();
+  if(last === today) { showToast('Holnap újra elérhető!'); return; }
+  localStorage.setItem(DAILY_KEY, today);
+  checkDailyStatus();
+  openTicket('free');
+}
+
+// ── SORSJEGY MEGNYITÁS ──
+function buyTicket(type) {
+  const t = TICKETS[type];
+  if(balance < t.price) { showToast('Nincs elég csillagod!'); return; }
+  addBalance(-t.price);
+  openTicket(type);
+}
+
+function openTicket(type) {
+  const t = TICKETS[type];
+  currentTicket = type;
+  scratchedCells = new Set();
+  ticketRevealed = false;
+  totalCells = t.cols * t.rows;
+
+  document.getElementById('sbox-title').textContent = t.icon + ' ' + t.name;
+  document.getElementById('sbox-desc').textContent = 'Kapard le az összes mezőt!';
+  document.getElementById('scratch-result').innerHTML = '';
+  document.getElementById('sclose-btn').style.display = 'none';
+
+  // Grid generálás
+  const cells = generateCells(type);
+  buildScratchGrid(t.cols, t.rows, cells);
+
+  document.getElementById('scratch-overlay').classList.add('show');
+}
+
+function generateCells(type) {
+  const t = TICKETS[type];
+  let cells = [];
+
+  if(type === 'free' || type === 'basic') {
+    // Triple: 3 egyforma = nyeremény
+    // 30% esély nyerésre
+    const won = Math.random() < 0.30;
+    if(won) {
+      const symIdx = Math.floor(Math.random() * t.symbols.length);
+      const sym = t.symbols[symIdx];
+      const prize = t.prizes[symIdx];
+      cells = [sym, sym, sym];
+      // Többi random, de nem egyező
+      const others = t.symbols.filter(s => s !== sym);
+      while(cells.length < 9) {
+        const s = others[Math.floor(Math.random()*others.length)];
+        if(cells.filter(c=>c===s).length < 2) cells.push(s);
+      }
+    } else {
+      // Vesztes: max 2 egyforma
+      while(cells.length < 9) {
+        const s = t.symbols[Math.floor(Math.random()*t.symbols.length)];
+        if(cells.filter(c=>c===s).length < 2) cells.push(s);
+      }
+    }
+    return shuffle(cells).map((sym, i) => {
+      const idx = t.symbols.indexOf(sym);
+      return { sym, prize: t.prizes[idx] || 0 };
+    });
+  }
+
+  if(type === 'silver') {
+    // Pairs: minél több pár annál nagyobb nyeremény
+    const syms = shuffle([...t.symbols, ...t.symbols]).slice(0, 12);
+    return syms.map(sym => ({ sym, prize: 0 }));
+  }
+
+  if(type === 'gold') {
+    // Sum: számok, összegük alapján nyeremény
+    const nums = [];
+    for(let i = 0; i < 16; i++) {
+      nums.push(Math.floor(Math.random() * 9) + 1);
+    }
+    return nums.map(n => ({ sym: n.toString(), prize: n, isNum: true }));
+  }
+
+  return [];
+}
+
+function buildScratchGrid(cols, rows, cells) {
+  const grid = document.getElementById('scratch-grid');
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.innerHTML = '';
+
+  const cellW = Math.min(Math.floor((320 - cols*8) / cols), 70);
+
+  cells.forEach((cell, idx) => {
+    const div = document.createElement('div');
+    div.className = 'scratch-cell';
+    div.style.width = cellW + 'px';
+    div.dataset.idx = idx;
+
+    // Szimbólum réteg
+    const symDiv = document.createElement('div');
+    symDiv.className = 'cell-symbol';
+    symDiv.textContent = cell.sym;
+    div.appendChild(symDiv);
+
+    // Canvas réteg (ezüst kaparós)
+    const cvs = document.createElement('canvas');
+    cvs.width = cellW;
+    cvs.height = cellW;
+    initScratchCover(cvs, div, idx, cells);
+    div.appendChild(cvs);
+
+    grid.appendChild(div);
+  });
+
+  // Mentjük a cellák adatait
+  grid.dataset.cells = JSON.stringify(cells);
+  grid.dataset.type = currentTicket;
+}
+
+function initScratchCover(cvs, cell, idx, allCells) {
+  const ctx = cvs.getContext('2d');
+  const w = cvs.width, h = cvs.height;
+
+  // Ezüst kaparós réteg
+  const grad = ctx.createLinearGradient(0,0,w,h);
+  grad.addColorStop(0,'#9e9e9e');
+  grad.addColorStop(.4,'#d4d4d4');
+  grad.addColorStop(.6,'#b0b0b0');
+  grad.addColorStop(1,'#888');
+  ctx.fillStyle = grad;
+  ctx.roundRect ? ctx.roundRect(0,0,w,h,8) : ctx.fillRect(0,0,w,h);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.font = `bold ${Math.round(w*.18)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('KAPARJ', w/2, h/2);
+
+  let revealed = false;
+  let drawing = false;
+  let scratchPct = 0;
+
+  const scratch = (e) => {
+    if(revealed) return;
+    const rect = cvs.getBoundingClientRect();
+    const scX = cvs.width / rect.width;
+    const scY = cvs.height / rect.height;
+    const touch = e.touches ? e.touches[0] : e;
+    const x = (touch.clientX - rect.left) * scX;
+    const y = (touch.clientY - rect.top) * scY;
+
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(x, y, w*0.22, 0, Math.PI*2);
+    ctx.fill();
+
+    // Ellenőrzés: elég kaparva?
+    const data = ctx.getImageData(0,0,w,h).data;
+    let transparent = 0;
+    for(let i=3; i<data.length; i+=4) if(data[i]<128) transparent++;
+    scratchPct = transparent / (w*h);
+
+    if(scratchPct > 0.5 && !revealed) {
+      revealed = true;
+      ctx.clearRect(0,0,w,h);
+      cell.classList.add('revealed');
+      scratchedCells.add(idx);
+      checkAllRevealed(allCells);
+    }
+  };
+
+  cvs.addEventListener('mousedown', e => { drawing=true; scratch(e); });
+  cvs.addEventListener('mousemove', e => { if(drawing) scratch(e); });
+  cvs.addEventListener('mouseup', () => drawing=false);
+  cvs.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; scratch(e); }, {passive:false});
+  cvs.addEventListener('touchmove', e => { e.preventDefault(); if(drawing) scratch(e); }, {passive:false});
+  cvs.addEventListener('touchend', () => drawing=false);
+}
+
+function checkAllRevealed(cells) {
+  if(scratchedCells.size >= totalCells && !ticketRevealed) {
+    ticketRevealed = true;
+    setTimeout(() => showTicketResult(cells), 300);
+  }
+}
+
+function showTicketResult(cells) {
+  const type = currentTicket;
+  const t = TICKETS[type];
+  let prize = 0;
+  let msg = '';
+
+  if(type === 'free' || type === 'basic') {
+    // Csoportosítás
+    const counts = {};
+    cells.forEach(c => counts[c.sym] = (counts[c.sym]||0)+1);
+    const triple = Object.entries(counts).find(([,cnt]) => cnt >= 3);
+    if(triple) {
+      const sym = triple[0];
+      const idx = t.symbols.indexOf(sym);
+      prize = t.prizes[idx] || 0;
+      msg = `3× ${sym} — Nyertél!`;
+    } else {
+      msg = 'Sajnos nem nyertél. Próbáld újra!';
+    }
+  }
+
+  if(type === 'silver') {
+    const counts = {};
+    cells.forEach(c => counts[c.sym] = (counts[c.sym]||0)+1);
+    const pairs = Object.values(counts).filter(v => v >= 2).length;
+    prize = t.prizes[pairs] || 0;
+    if(pairs > 0) msg = `${pairs} pár — Nyertél!`;
+    else msg = 'Nincs pár. Próbáld újra!';
+  }
+
+  if(type === 'gold') {
+    const sum = cells.reduce((s,c) => s + (c.prize||0), 0);
+    const multIdx = Math.min(Math.floor(sum / 10), t.multipliers.length-1);
+    prize = t.multipliers[multIdx] * 100;
+    msg = `Összeg: ${sum} → ${t.multipliers[multIdx]}x szorzó`;
+  }
+
+  const resultEl = document.getElementById('scratch-result');
+  if(prize > 0) {
+    addBalance(prize);
+    launchConfetti();
+    resultEl.innerHTML = `<div class="win-banner">🎉 +${prize.toLocaleString()} ⭐ ${msg}</div>`;
+    addHistory(t.icon, t.name, prize);
+  } else {
+    resultEl.innerHTML = `<div class="lose-banner">😔 ${msg}</div>`;
+    addHistory(t.icon, t.name, -t.price);
+  }
+
+  document.getElementById('sclose-btn').style.display = 'block';
+}
+
+function closeTicket() {
+  document.getElementById('scratch-overlay').classList.remove('show');
+}
+
+// ── HISTORY ──
+function addHistory(icon, name, amount) {
+  history.unshift({ icon, name, amount, time: Date.now() });
+  if(history.length > 10) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('hist-list');
+  if(history.length === 0) {
+    list.innerHTML = '<div style="color:#8888aa;font-size:.85rem;padding:8px 0;">Még nincs előzmény.</div>';
+    return;
+  }
+  list.innerHTML = history.map(h => `
+    <div class="hist-row">
+      <div class="hist-icon">${h.icon}</div>
+      <div class="hist-name">${h.name}</div>
+      <div class="hist-win ${h.amount>0?'pos':'neg'}">${h.amount>0?'+':''}${h.amount.toLocaleString()} ⭐</div>
+    </div>
+  `).join('');
+}
+
+// ── KONFETTI ──
+function launchConfetti() {
+  const colors = ['#f5c842','#7c5cfc','#5cfc8e','#fc5c5c','#5c9efc','#c45cfc'];
+  for(let i=0; i<50; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.cssText = `
+        left:${Math.random()*100}vw;top:-10px;
+        width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        border-radius:${Math.random()>.5?'50%':'2px'};
+        animation-duration:${1.2+Math.random()*1}s;
+      `;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 2500);
+    }, i*40);
+  }
+}
+
+// ── UTILS ──
+function shuffle(arr) {
+  for(let i=arr.length-1;i>0;i--) {
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+// ── START ──
+loadBalance();
+renderHistory();
+</script>
+</body>
+</html>
