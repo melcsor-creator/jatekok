@@ -290,14 +290,26 @@ const GPOS=[
 ];
 
 const CHANCE_CARDS=[
-  {text:'Bankbónusz! +3 000 Ft',         eff:{money:3000}},
-  {text:'Adóvisszatérítés! +1 500 Ft',   eff:{money:1500}},
-  {text:'Szerencse nap! +1 000 Ft',      eff:{money:1000}},
-  {text:'Vízvezeték-szerelő: -1 000 Ft',eff:{money:-1000}},
-  {text:'Parkolóbírság: -500 Ft',        eff:{money:-500}},
-  {text:'Lépj a Belvárosra!',            eff:{moveTo:27}},
-  {text:'Vissza a Startra! +2 000 Ft',   eff:{moveTo:0,bonus:2000}},
-  {text:'Fizess 500 Ft-ot mindenkinek!', eff:{payAll:500}},
+  // Pénz kártyák
+  {text:'Bankbónusz! +3 000 Ft',              eff:{money:3000}},
+  {text:'Adóvisszatérítés! +1 500 Ft',        eff:{money:1500}},
+  {text:'Szerencse nap! +1 000 Ft',           eff:{money:1000}},
+  {text:'Lottónyeremény! +5 000 Ft',          eff:{money:5000}},
+  {text:'Vízvezeték-szerelő: -1 000 Ft',      eff:{money:-1000}},
+  {text:'Parkolóbírság: -500 Ft',             eff:{money:-500}},
+  {text:'Útjavítás: -2 000 Ft',               eff:{money:-2000}},
+  {text:'Fizess 500 Ft-ot mindenkinek!',       eff:{payAll:500}},
+  {text:'Mindenki fizet neked 1 000 Ft-ot!',  eff:{collectAll:1000}},
+  // Mozgás kártyák
+  {text:'Lépj a Belvárosra!',                 eff:{moveTo:27}},
+  {text:'Vissza a Startra! +2 000 Ft',        eff:{moveTo:0,bonus:2000}},
+  {text:'Lépj a Balatonra!',                  eff:{moveTo:12}},
+  {text:'Lépj a Börtönbe!',                   eff:{moveTo:10,goJail:true}},
+  {text:'Lépj 3-at előre!',                   eff:{moveRel:3}},
+  {text:'Lépj 2-t vissza!',                   eff:{moveRel:-2}},
+  // Speciális
+  {text:'Kiszabadulós kártya! (Börtönből ingyen)',  eff:{freeCard:true}},
+  {text:'Dupla bérleti díj a következő körben!',    eff:{doubleRent:true}},
 ];
 
 const DOTS={
@@ -782,6 +794,10 @@ function handlePendingAction(action,room){
     addLog(p.name+' saját ingatlanán áll: '+sp.name);
     resolveEndTurn(room);return;
   }
+  if(action.type==='auctionBid'){
+    showAuctionModal(room, action.spaceId, action.minBid, action.bids||{});
+    return;
+  }
   if(action.type==='gotojail'){
     playSound('jail');
     showM('👮 Börtönbe kerültél!',p.name+' bekerült a börtönbe!\n3 körön belül kell kiszabadulni.',null,[
@@ -805,7 +821,7 @@ function handlePendingAction(action,room){
   if(action.type==='buyOffer'){
     const canBuy=p.money>=sp.price;
     const btns=[
-      {t:'❌ Kihagyom',c:'mb-skip',fn(){closeM();resolveEndTurn(room);}},
+      {t:'🔨 Aukció',c:'mb-skip',fn(){closeM();startAuction(room,action.spaceId);}},
     ];
     if(canBuy) btns.unshift({t:'✅ Megveszem',c:'mb-buy',fn(){
       playSound('buy');
@@ -848,13 +864,46 @@ async function applyChance(room,pidx,card){
   const e=card.eff;
   const newLog=[...(room.log||[])];
   newLog.push(p.name+' véletlen: '+card.text);
-  if(e.money){p.money+=e.money;}
-  if(e.moveTo!==undefined){if(e.bonus)p.money+=e.bonus;p.pos=e.moveTo;}
-  if(e.payAll){
-    room.players.forEach((_,i)=>{if(i!==pidx&&!updPlayers[i].bankrupt){p.money-=e.payAll;updPlayers[i]={...updPlayers[i],money:updPlayers[i].money+e.payAll};}});
+
+  if(e.money)   { p.money+=e.money; floatMoney(e.money, p.color); }
+  if(e.bonus)   { p.money+=e.bonus; }
+  if(e.freeCard){ p.freeCard=true; newLog.push('🃏 '+p.name+' kapott egy kiszabadulós kártyát!'); }
+  if(e.doubleRent){ p.doubleRentNextTurn=true; newLog.push('💰 '+p.name+' következő körben dupla bérleti díjat szed!'); }
+
+  if(e.collectAll){
+    room.players.forEach((_,i)=>{
+      if(i!==pidx&&!updPlayers[i].bankrupt){
+        p.money+=e.collectAll;
+        updPlayers[i]={...updPlayers[i],money:updPlayers[i].money-e.collectAll};
+      }
+    });
+    floatMoney(e.collectAll*(room.players.length-1), p.color);
   }
+  if(e.payAll){
+    room.players.forEach((_,i)=>{
+      if(i!==pidx&&!updPlayers[i].bankrupt){
+        p.money-=e.payAll;
+        updPlayers[i]={...updPlayers[i],money:updPlayers[i].money+e.payAll};
+      }
+    });
+    floatMoney(-e.payAll*(room.players.length-1), p.color);
+  }
+
+  if(e.moveRel!==undefined){
+    const newPos=((p.pos+e.moveRel)+SPACES.length)%SPACES.length;
+    if(e.moveRel>0&&newPos<p.pos) p.money+=2000; // passed START
+    p.pos=newPos;
+  }
+  if(e.moveTo!==undefined){ if(e.bonus)p.money+=e.bonus; p.pos=e.moveTo; }
+  if(e.goJail){ p.inJail=true; p.jailTurns=0; p.pos=10; }
+
   updPlayers[pidx]=p;
-  const extra=e.moveTo!==undefined?computeAction(SPACES[e.moveTo],e.moveTo,pidx,{...room,players:updPlayers,owned:room.owned||{}}):null;
+
+  // Next action
+  let extra=null;
+  if(!e.goJail && (e.moveTo!==undefined||e.moveRel!==undefined)){
+    extra=computeAction(SPACES[p.pos],p.pos,pidx,{...room,players:updPlayers,owned:room.owned||{}});
+  }
   await commitUpdate({players:updPlayers,log:newLog},room,pidx,extra);
 }
 
@@ -886,40 +935,194 @@ async function resolveEndTurn(room){
 
 async function commitUpdate(updates,room,pidx,extraAction){
   const updPlayers=updates.players||room.players;
+  const updOwned={...(updates.owned||room.owned||{})};
+
   // Bust check
-  let winner=null;
   const bust=updPlayers.findIndex(p=>!p.bankrupt&&p.money<0);
   if(bust!==-1){
     updPlayers[bust]={...updPlayers[bust],bankrupt:true,money:0};
-    // Remove their properties
-    const updOwned={...(updates.owned||room.owned||{})};
-    Object.keys(updOwned).forEach(s=>{if(updOwned[s]===bust)delete updOwned[s];});
+
+    // Csőd: ingatlanok átszállnak a hitelezőre (pidx) ha ő okozta a csődöt
+    // Egyébként az ingatlanok felszabadulnak (aukció helyett)
+    const creditor = (pidx !== bust) ? pidx : -1;
+    Object.keys(updOwned).forEach(s=>{
+      if(updOwned[s]===bust){
+        if(creditor>=0){
+          updOwned[s]=creditor; // átszáll a hitelezőre
+        } else {
+          delete updOwned[s]; // felszabadul
+        }
+      }
+    });
     updates.owned=updOwned;
+
     const alive=updPlayers.filter(p=>!p.bankrupt);
+    const newLog=[...(updates.log||room.log||[])];
     if(alive.length===1){
       const wi=updPlayers.findIndex(p=>!p.bankrupt);
-      const newLog=[...(updates.log||room.log||[])];
-      newLog.push('💀 '+updPlayers[bust].name+' csődbe ment! '+updPlayers[wi].name+' nyert!');
+      if(creditor>=0){
+        newLog.push('💀 '+updPlayers[bust].name+' csődbe ment! Ingatlanai átszálltak '+updPlayers[creditor].name+'-ra. '+updPlayers[wi].name+' nyert!');
+      } else {
+        newLog.push('💀 '+updPlayers[bust].name+' csődbe ment! '+updPlayers[wi].name+' nyert!');
+      }
       await db.collection('mono_rooms').doc(currentRoomId).update({
-        ...updates,players:updPlayers,log:newLog,pendingAction:null,status:'finished',winner:wi
+        ...updates,players:updPlayers,owned:updOwned,log:newLog,pendingAction:null,status:'finished',winner:wi
       });
       return;
     }
-    const newLog=[...(updates.log||room.log||[])];
-    newLog.push('💀 '+updPlayers[bust].name+' csődbe ment és kiesett!');
+    if(creditor>=0){
+      newLog.push('💀 '+updPlayers[bust].name+' csődbe ment! Ingatlanai átszálltak '+updPlayers[creditor].name+'-ra.');
+    } else {
+      newLog.push('💀 '+updPlayers[bust].name+' csődbe ment és kiesett! Ingatlanai felszabadultak.');
+    }
     updates.log=newLog;
   }
 
   if(extraAction){
     await db.collection('mono_rooms').doc(currentRoomId).update({
-      ...updates,players:updPlayers,pendingAction:extraAction
+      ...updates,players:updPlayers,owned:updOwned,pendingAction:extraAction
     });
   } else {
-    // End turn
     const next=1-room.cur;
     await db.collection('mono_rooms').doc(currentRoomId).update({
-      ...updates,players:updPlayers,cur:next,pendingAction:null
+      ...updates,players:updPlayers,owned:updOwned,cur:next,pendingAction:null
     });
+  }
+}
+
+// ── AUKCIÓ ──
+function startAuction(room, spaceId) {
+  const sp = SPACES[spaceId];
+  const minBid = Math.round(sp.price * 0.5); // minimum licit: ár fele
+  const p = room.players[myPlayerIdx];
+
+  // Aukció állapot: elküldjük Firestore-ba
+  const auctionData = {
+    type: 'auction',
+    spaceId,
+    bids: {},           // { playerIdx: amount }
+    phase: 'bidding',   // bidding → done
+    minBid,
+    forPlayer: myPlayerIdx, // aki indította
+  };
+
+  // Mindkét játékos licitálhat — Firestore-ban tároljuk
+  db.collection('mono_rooms').doc(currentRoomId).update({
+    pendingAction: { ...auctionData, forPlayer: 0 }
+  }).then(() => {
+    db.collection('mono_rooms').doc(currentRoomId).update({
+      pendingAction: { ...auctionData, forPlayer: myPlayerIdx }
+    });
+  });
+
+  showAuctionModal(room, spaceId, minBid, {});
+}
+
+function showAuctionModal(room, spaceId, minBid, currentBids) {
+  const sp = SPACES[spaceId];
+  const p = room.players[myPlayerIdx];
+  const myBid = currentBids[myPlayerIdx] || 0;
+  const oppIdx = 1 - myPlayerIdx;
+  const oppBid = currentBids[oppIdx] || 0;
+  const oppName = room.players[oppIdx].name;
+
+  const maxBid = p.money;
+  const suggestedBid = Math.max(minBid, oppBid + 100);
+
+  let bidInput = suggestedBid;
+
+  const bodyText =
+    sp.icon + ' ' + sp.name + '\n' +
+    'Minimum licit: ' + minBid.toLocaleString() + ' Ft\n' +
+    (oppBid > 0 ? oppName + ' licitje: ' + oppBid.toLocaleString() + ' Ft\n' : '') +
+    'A te pénzed: ' + maxBid.toLocaleString() + ' Ft';
+
+  showM('🔨 Aukció', bodyText,
+    null,
+    [
+      {t:'💰 Licitálok', c:'mb-buy', fn(){
+        // Licit mező értéke
+        const inp = document.getElementById('auction-bid-input');
+        const bid = inp ? parseInt(inp.value) : suggestedBid;
+        if(bid < minBid) { alert('Minimum '+minBid.toLocaleString()+' Ft!'); return; }
+        if(bid > maxBid) { alert('Nincs elég pénzed!'); return; }
+        closeM();
+        submitBid(room, spaceId, bid, currentBids, minBid);
+      }},
+      {t:'❌ Kiszállok', c:'mb-skip', fn(){
+        closeM();
+        submitBid(room, spaceId, 0, currentBids, minBid);
+      }}
+    ]
+  );
+
+  // Bid input hozzáadása a modal body alá
+  setTimeout(() => {
+    const body = document.getElementById('m-body');
+    if (!body) return;
+    const inp = document.createElement('input');
+    inp.id = 'auction-bid-input';
+    inp.type = 'number';
+    inp.value = suggestedBid;
+    inp.min = minBid;
+    inp.max = maxBid;
+    inp.step = 100;
+    inp.style.cssText = 'width:100%;margin-top:10px;padding:8px 12px;border-radius:8px;border:1px solid #3a3a6e;background:#12122a;color:#e8e8f5;font-size:1rem;text-align:center;font-family:inherit;';
+    body.appendChild(inp);
+  }, 50);
+}
+
+async function submitBid(room, spaceId, bid, currentBids, minBid) {
+  const newBids = { ...currentBids, [myPlayerIdx]: bid };
+  const oppIdx = 1 - myPlayerIdx;
+
+  // Ha mindkét fél licitált már
+  if (newBids[oppIdx] !== undefined) {
+    // Aukció vége — legmagasabb licitáló nyer
+    const myBid  = newBids[myPlayerIdx] || 0;
+    const oppBid = newBids[oppIdx] || 0;
+
+    if (myBid === 0 && oppBid === 0) {
+      // Senki nem licitált — felszabadul
+      const newLog = [...(room.log||[]), SPACES[spaceId].name+' aukción senki sem nyert, mező szabad maradt.'];
+      await db.collection('mono_rooms').doc(currentRoomId).update({
+        log: newLog, pendingAction: null, cur: 1 - room.cur
+      });
+      return;
+    }
+
+    const winner = myBid >= oppBid ? myPlayerIdx : oppIdx;
+    const winnerBid = myBid >= oppBid ? myBid : oppBid;
+    const winnerName = room.players[winner].name;
+
+    if (winnerBid === 0) {
+      const newLog = [...(room.log||[]), SPACES[spaceId].name+' aukción senki sem nyert.'];
+      await db.collection('mono_rooms').doc(currentRoomId).update({
+        log: newLog, pendingAction: null, cur: 1 - room.cur
+      });
+      return;
+    }
+
+    // Vevő fizet
+    const updPlayers = [...room.players];
+    updPlayers[winner] = { ...updPlayers[winner], money: updPlayers[winner].money - winnerBid };
+    const updOwned = { ...(room.owned||{}), [spaceId]: winner };
+    const newLog = [...(room.log||[]), '🔨 Aukció: '+winnerName+' nyert '+SPACES[spaceId].name+'-t '+winnerBid.toLocaleString()+' Ft-ért!'];
+    playSound('buy');
+
+    await db.collection('mono_rooms').doc(currentRoomId).update({
+      players: updPlayers, owned: updOwned,
+      log: newLog, pendingAction: null, cur: 1 - room.cur
+    });
+  } else {
+    // Csak az egyik fél licitált — várjuk a másikat
+    const pendingAction = {
+      type: 'auctionBid',
+      spaceId, minBid,
+      bids: newBids,
+      forPlayer: oppIdx
+    };
+    await db.collection('mono_rooms').doc(currentRoomId).update({ pendingAction });
   }
 }
 
