@@ -235,18 +235,39 @@ if(typeof db!=='undefined'){
   window.addEventListener('beforeunload',()=>db.collection('presence').doc(username).delete().catch(()=>{}));
 }
 
-// Picsum képek párokhoz — fix seed-ek hogy szépek legyenek
-const ALL_IMAGES = [
-  10,20,30,40,50,60,70,80,90,100,
-  110,120,130,140,150,160,170,180,190,200,
-  210,220,230,240,250,260,270,280,290,300,
-  310,320,330,340,350,360,370,380,390,400,
-  410,420,430,440,450,460,470,480,490,500,
+// Szép kártyák — szín + emoji kombináció, mindig megjelenik
+const CARD_DESIGNS = [
+  { emoji:'🐱', bg:'linear-gradient(135deg,#ff6b9d,#c44569)' },
+  { emoji:'🐶', bg:'linear-gradient(135deg,#f7971e,#ffd200)' },
+  { emoji:'🦊', bg:'linear-gradient(135deg,#f953c6,#b91d73)' },
+  { emoji:'🐻', bg:'linear-gradient(135deg,#834d9b,#d04ed6)' },
+  { emoji:'🐼', bg:'linear-gradient(135deg,#4facfe,#00f2fe)' },
+  { emoji:'🦁', bg:'linear-gradient(135deg,#43e97b,#38f9d7)' },
+  { emoji:'🐸', bg:'linear-gradient(135deg,#fa709a,#fee140)' },
+  { emoji:'🐯', bg:'linear-gradient(135deg,#a18cd1,#fbc2eb)' },
+  { emoji:'🦋', bg:'linear-gradient(135deg,#fccb90,#d57eeb)' },
+  { emoji:'🌸', bg:'linear-gradient(135deg,#ff9a9e,#fecfef)' },
+  { emoji:'🌈', bg:'linear-gradient(135deg,#a1c4fd,#c2e9fb)' },
+  { emoji:'⭐', bg:'linear-gradient(135deg,#f6d365,#fda085)' },
+  { emoji:'🍕', bg:'linear-gradient(135deg,#ff6a00,#ee0979)' },
+  { emoji:'🎸', bg:'linear-gradient(135deg,#6a11cb,#2575fc)' },
+  { emoji:'🚀', bg:'linear-gradient(135deg,#0f2027,#203a43,#2c5364)' },
+  { emoji:'🎯', bg:'linear-gradient(135deg,#e55d87,#5fc3e4)' },
+  { emoji:'🏆', bg:'linear-gradient(135deg,#f7971e,#ffd200)' },
+  { emoji:'💎', bg:'linear-gradient(135deg,#4facfe,#00f2fe)' },
+  { emoji:'🎪', bg:'linear-gradient(135deg,#ff758c,#ff7eb3)' },
+  { emoji:'🌴', bg:'linear-gradient(135deg,#56ab2f,#a8e063)' },
+  { emoji:'🦄', bg:'linear-gradient(135deg,#c471ed,#12c2e9)' },
+  { emoji:'🍦', bg:'linear-gradient(135deg,#ffecd2,#fcb69f)' },
+  { emoji:'🎭', bg:'linear-gradient(135deg,#667eea,#764ba2)' },
+  { emoji:'🌊', bg:'linear-gradient(135deg,#1a6fe8,#00c6fb)' },
+  { emoji:'🎨', bg:'linear-gradient(135deg,#f093fb,#f5576c)' },
+  { emoji:'🦅', bg:'linear-gradient(135deg,#4e54c8,#8f94fb)' },
+  { emoji:'🍓', bg:'linear-gradient(135deg,#eb3349,#f45c43)' },
+  { emoji:'🎃', bg:'linear-gradient(135deg,#f7971e,#ff6a00)' },
+  { emoji:'🌺', bg:'linear-gradient(135deg,#fd79a8,#6c5ce7)' },
+  { emoji:'🐬', bg:'linear-gradient(135deg,#0099f7,#f11712)' },
 ];
-
-function getImageUrl(seed, size) {
-  return 'https://picsum.photos/seed/' + seed + '/' + size + '/' + size;
-}
 
 const DIFF = {
   easy:   { cols:4, rows:4, pairs:8,  time:120, label:'Könnyű' },
@@ -285,10 +306,10 @@ function startGame(diff){
   timeLeft=cfg.time;
   totalTime=cfg.time;
 
-  // Kártyák generálása képekkel
-  const imgSeeds = shuffle([...ALL_IMAGES]).slice(0, cfg.pairs);
-  const deck = shuffle([...imgSeeds, ...imgSeeds]).map((seed, i) => ({
-    id: i, seed, matched: false, flipped: false
+  // Kártyák generálása
+  const designs = shuffle([...CARD_DESIGNS]).slice(0, cfg.pairs);
+  const deck = shuffle([...designs, ...designs]).map((d, i) => ({
+    id: i, emoji: d.emoji, bg: d.bg, matched: false, flipped: false
   }));
   cards = deck;
 
@@ -320,14 +341,18 @@ function buildGrid(cellSize){
     const card=document.createElement('div');
     card.className='mem-card';
     card.style.width=cellSize+'px';
-    const imgUrl=getImageUrl(cards[i].seed, Math.round(cellSize*1.5));
+    const d=cards[i];
+    const emojiSize=Math.round(cellSize*0.45);
     card.innerHTML=`<div class="card-inner">
-      <div class="card-front"><img src="${imgUrl}" alt="kártya" loading="lazy"/></div>
+      <div class="card-front" style="background:${d.bg};display:flex;align-items:center;justify-content:center;font-size:${emojiSize}px;border-radius:10px;"></div>
       <div class="card-back">🎴</div>
     </div>`;
+    // Emoji hozzáadása JS-sel (nem HTML entitás probléma)
     card.addEventListener('click',()=>flipCard(i));
     card.id='card-'+i;
     grid.appendChild(card);
+    // Emoji beállítás
+    card.querySelector('.card-front').textContent=d.emoji;
   });
 }
 
@@ -352,7 +377,7 @@ function flipCard(idx){
 
 function checkMatch(){
   const [a,b]=flipped;
-  if(cards[a].seed===cards[b].seed){
+  if(cards[a].emoji===cards[b].emoji){
     // Találat!
     cards[a].matched=true;
     cards[b].matched=true;
